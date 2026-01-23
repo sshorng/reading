@@ -4119,10 +4119,35 @@ async function displayStudentAnalysis(studentId, classId) {
     }
 }
 
-function displaySubmissionReview(assignmentId, studentId) {
+async function displaySubmissionReview(assignmentId, studentId) {
+    let assignment = appState.currentAssignment?.id === assignmentId ? appState.currentAssignment : null;
+
+    if (!assignment) {
+        assignment = appState.assignments.find(a => a.id === assignmentId) ||
+            appState.teacherArticleQueryState.articles.find(a => a.id === assignmentId) ||
+            (appState.allTeacherArticles || []).find(a => a.id === assignmentId);
+    }
+
+    if (!assignment) {
+        // If still not found, fetch from DB
+        showLoading('正在讀取課業資料...');
+        try {
+            const docRef = doc(db, "assignments", assignmentId);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                assignment = { id: docSnap.id, ...docSnap.data() };
+            }
+        } catch (e) {
+            console.error("Error fetching assignment for review:", e);
+        } finally {
+            hideLoading();
+        }
+    }
+
+
     const submission = appState.allSubmissions.find(s => s.assignmentId === assignmentId && s.studentId === studentId);
-    const assignment = appState.assignments.find(a => a.id === assignmentId);
-    if (!submission || !assignment) { renderModal('message', { type: 'error', title: '錯誤', message: '找不到作答記錄。' }); return; }
+
+    if (!submission || !assignment) { renderModal('message', { type: 'error', title: '錯誤', message: '找不到作答記錄或課業資料。' }); return; }
 
     renderModal('studentDetail');
     setTimeout(() => {
@@ -4138,7 +4163,19 @@ function displaySubmissionReview(assignmentId, studentId) {
 }
 
 async function handleStudentAiAnalysis(studentId) {
-    const studentSubmissions = appState.allSubmissions.filter(s => s.studentId === studentId);
+    // Explicitly fetch all submissions for this student to ensure we have the complete history
+    // and not just what's loaded in the local cache (which might be paginated or incomplete).
+    let studentSubmissions = [];
+    try {
+        const q = query(collection(db, "submissions"), where("studentId", "==", studentId));
+        const snapshot = await getDocs(q);
+        studentSubmissions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+        console.error("Error fetching student submissions for AI analysis:", error);
+        renderModal('message', { type: 'error', title: '錯誤', message: '無法讀取完整作答記錄。' });
+        return;
+    }
+
     if (studentSubmissions.length < 1) { renderModal('message', { type: 'info', title: '提示', message: '該學子至少需要一筆課業記錄才能進行分析。' }); return; }
     showLoading('AI 書僮正在分析學習數據...');
     const avgScore = studentSubmissions.reduce((sum, s) => sum + s.score, 0) / studentSubmissions.length;
