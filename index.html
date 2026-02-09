@@ -5,16 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智慧閱讀書院</title>
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/14726/14726843.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
     <!-- Preload the font stylesheet to improve loading performance -->
-    <link rel="preload" href="https://cdn.jsdelivr.net/gh/max32002/genwaneoscjk/css/genwaneoscjk-dynamic-subset.min.css"
-        as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript>
-        <link rel="stylesheet"
-            href="https://cdn.jsdelivr.net/gh/max32002/genwaneoscjk/css/genwaneoscjk-dynamic-subset.min.css">
-    </noscript>
     <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -42,6 +39,10 @@
             <div class="text-center mb-8">
                 <h1 class="login-title">書院開筆</h1>
                 <p class="login-subtitle">擇一學堂，入座啟程。</p>
+                <!-- Daily Quote Container -->
+                <div id="daily-quote" class="mt-4 p-4 rounded-lg bg-orange-50/50 border border-orange-100/50 hidden">
+                    <p class="text-gray-600 font-serif italic text-sm leading-relaxed"></p>
+                </div>
             </div>
             <div class="space-y-6">
                 <div>
