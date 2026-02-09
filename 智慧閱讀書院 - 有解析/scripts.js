@@ -213,6 +213,47 @@ function showView(viewName, data = {}) {
         if (template) {
             const content = template.content.cloneNode(true);
             dom.loginView.appendChild(content);
+
+            // Daily Quote Logic
+            const quotes = [
+                "學而時習之，不亦說乎？有朋自遠方來，不亦樂乎？",
+                "溫故而知新，可以為師矣。",
+                "學而不思則罔，思而不學則殆。",
+                "知之者不如好之者，好之者不如樂之者。",
+                "三人行，必有我師焉。擇其善者而從之，其不善者而改之。",
+                "逝者如斯夫，不舍晝夜。",
+                "歲寒，然後知松柏之後凋也。",
+                "君子坦蕩蕩，小人長戚戚。",
+                "工欲善其事，必先利其器。",
+                "學如逆水行舟，不進則退。",
+                "讀書破萬卷，下筆如有神。",
+                "黑髮不知勤學早，白首方悔讀書遲。",
+                "書山有路勤為徑，學海無涯苦作舟。",
+                "博學之，審問之，慎思之，明辨之，篤行之。",
+                "非淡泊無以明志，非寧靜無以致遠。",
+                "勿以惡小而為之，勿以善小而不為。",
+                "天行健，君子以自強不息；地勢坤，君子以厚德載物。",
+                "路漫漫其修遠兮，吾將上下而求索。",
+                "奇文共欣賞，疑義相與析。",
+                "問渠那得清如許？為有源頭活水來。"
+            ];
+            const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+            const quoteEl = dom.loginView.querySelector('#daily-quote p');
+            const quoteContainer = dom.loginView.querySelector('#daily-quote');
+            if (quoteEl && quoteContainer) {
+                quoteEl.textContent = randomQuote;
+                quoteContainer.classList.remove('hidden');
+                // Simple fade-in animation
+                quoteContainer.animate([
+                    { opacity: 0, transform: 'translateY(10px)' },
+                    { opacity: 1, transform: 'translateY(0)' }
+                ], {
+                    duration: 800,
+                    easing: 'ease-out',
+                    fill: 'forwards',
+                    delay: 500 // Wait for card animation
+                });
+            }
         }
         dom.loginView.classList.remove('hidden');
     } else if (viewName === 'app') {
