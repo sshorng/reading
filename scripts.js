@@ -89,7 +89,7 @@ async function callGenerativeAI(prompt) {
     const payload = {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-            temperature: 0.6,
+            temperature: 0.5,
             topK: 1,
             topP: 1,
             maxOutputTokens: 8192,
@@ -213,6 +213,47 @@ function showView(viewName, data = {}) {
         if (template) {
             const content = template.content.cloneNode(true);
             dom.loginView.appendChild(content);
+
+            // Daily Quote Logic
+            const quotes = [
+                "學而時習之，不亦說乎？有朋自遠方來，不亦樂乎？",
+                "溫故而知新，可以為師矣。",
+                "學而不思則罔，思而不學則殆。",
+                "知之者不如好之者，好之者不如樂之者。",
+                "三人行，必有我師焉。擇其善者而從之，其不善者而改之。",
+                "逝者如斯夫，不舍晝夜。",
+                "歲寒，然後知松柏之後凋也。",
+                "君子坦蕩蕩，小人長戚戚。",
+                "工欲善其事，必先利其器。",
+                "學如逆水行舟，不進則退。",
+                "讀書破萬卷，下筆如有神。",
+                "黑髮不知勤學早，白首方悔讀書遲。",
+                "書山有路勤為徑，學海無涯苦作舟。",
+                "博學之，審問之，慎思之，明辨之，篤行之。",
+                "非淡泊無以明志，非寧靜無以致遠。",
+                "勿以惡小而為之，勿以善小而不為。",
+                "天行健，君子以自強不息；地勢坤，君子以厚德載物。",
+                "路漫漫其修遠兮，吾將上下而求索。",
+                "奇文共欣賞，疑義相與析。",
+                "問渠那得清如許？為有源頭活水來。"
+            ];
+            const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+            const quoteEl = dom.loginView.querySelector('#daily-quote p');
+            const quoteContainer = dom.loginView.querySelector('#daily-quote');
+            if (quoteEl && quoteContainer) {
+                quoteEl.textContent = randomQuote;
+                quoteContainer.classList.remove('hidden');
+                // Simple fade-in animation
+                quoteContainer.animate([
+                    { opacity: 0, transform: 'translateY(10px)' },
+                    { opacity: 1, transform: 'translateY(0)' }
+                ], {
+                    duration: 800,
+                    easing: 'ease-out',
+                    fill: 'forwards',
+                    delay: 500 // Wait for card animation
+                });
+            }
         }
         dom.loginView.classList.remove('hidden');
     } else if (viewName === 'app') {
@@ -553,31 +594,160 @@ const modalHtmlGenerators = {
 
     achievementsList(data) {
         return new Promise(resolve => {
-            const achievementItems = data.allAchievements.map(ach => {
-                const unlockedRecord = data.unlockedAchievements.find(unlocked => unlocked.achievementId === ach.id);
-                const isUnlocked = !!unlockedRecord;
+            const { allAchievements, unlockedAchievements, studentData, studentSubmissions, categoryOrder } = data;
 
-                const titleEl = el('h3', { class: 'font-bold text-lg', textContent: ach.title });
-                if (isUnlocked && unlockedRecord.count > 1) {
-                    titleEl.appendChild(el('span', {
-                        class: 'ml-2 text-amber-600 font-bold text-base',
-                        textContent: `x ${unlockedRecord.count}`
-                    }));
+            // Helper: Calculate current progress for a condition
+            function getProgress(condition) {
+                if (!condition || !condition.type) return { current: 0, target: 0, percent: 0 };
+                const target = parseInt(condition.value, 10) || 0;
+                let current = 0;
+
+                switch (condition.type) {
+                    case 'submission_count':
+                        current = studentSubmissions?.length || 0;
+                        break;
+                    case 'login_streak':
+                        current = studentData?.loginStreak || 0;
+                        break;
+                    case 'high_score_streak':
+                        current = studentData?.highScoreStreak || 0;
+                        break;
+                    case 'completion_streak':
+                        current = studentData?.completionStreak || 0;
+                        break;
+                    case 'average_score':
+                        if (studentSubmissions && studentSubmissions.length > 0) {
+                            current = Math.round(studentSubmissions.reduce((sum, s) => sum + (s.score || 0), 0) / studentSubmissions.length);
+                        }
+                        break;
+                    case 'genre_explorer':
+                        const tagCounts = studentData?.tagReadCounts || {};
+                        current = Object.keys(tagCounts).filter(key => key.startsWith('contentType_')).length;
+                        break;
+                    case 'weekly_progress':
+                        return { current: null, target: null, percent: null, text: '自動判定' };
+                    default:
+                        if (condition.type && condition.type.startsWith('read_tag_')) {
+                            const key = condition.type.replace('read_tag_', '');
+                            current = (studentData?.tagReadCounts || {})[key] || 0;
+                        }
+                        break;
                 }
 
-                return el('div', { class: `p-4 border rounded-lg flex items-center gap-4 transition-all ${isUnlocked ? 'bg-amber-50' : 'bg-gray-100 filter grayscale opacity-60'}` }, [
-                    el('div', { class: 'text-5xl', textContent: ach.icon }),
-                    el('div', {}, [
-                        titleEl,
-                        el('p', { class: 'text-sm text-gray-600', textContent: ach.description })
-                    ])
-                ]);
+                const percent = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+                return { current, target, percent };
+            }
+
+            // Helper: Get category for an achievement
+            function getCategory(condition) {
+                if (!condition) return 'other';
+                for (const cat of categoryOrder) {
+                    if (cat.types.includes(condition.type)) return cat.key;
+                }
+                return 'other';
+            }
+
+            // Group achievements by category
+            const grouped = {};
+            categoryOrder.forEach(cat => grouped[cat.key] = []);
+            grouped['other'] = [];
+
+            allAchievements.forEach(ach => {
+                const catKey = getCategory(ach.condition);
+                if (!grouped[catKey]) grouped[catKey] = [];
+                grouped[catKey].push(ach);
             });
 
+            // Sort each category: by type first, then by value (ascending)
+            Object.keys(grouped).forEach(key => {
+                grouped[key].sort((a, b) => {
+                    const typeA = a.condition?.type || '';
+                    const typeB = b.condition?.type || '';
+                    if (typeA !== typeB) return typeA.localeCompare(typeB);
+                    const valA = parseInt(a.condition?.value, 10) || 0;
+                    const valB = parseInt(b.condition?.value, 10) || 0;
+                    return valA - valB;
+                });
+            });
+
+            // Build achievement items
+            const sections = [];
+
+            categoryOrder.forEach(cat => {
+                const items = grouped[cat.key];
+                if (items.length === 0) return;
+
+                const sectionItems = items.map(ach => {
+                    const unlockedRecord = unlockedAchievements.find(u => u.achievementId === ach.id);
+                    const isUnlocked = !!unlockedRecord;
+                    const progress = getProgress(ach.condition);
+
+                    // Title with count badge
+                    const titleEl = el('h3', { class: 'font-bold text-base' }, [ach.title]);
+                    if (isUnlocked && unlockedRecord.count > 1) {
+                        titleEl.appendChild(el('span', {
+                            class: 'ml-2 text-amber-600 font-bold text-sm',
+                            textContent: `×${unlockedRecord.count}`
+                        }));
+                    }
+
+                    // Progress bar or stamp
+                    let progressEl = null;
+                    if (isUnlocked) {
+                        // Show stamp for unlocked achievements
+                        progressEl = el('div', { class: 'achievement-stamp' }, [
+                            el('span', { class: 'stamp-text', textContent: '達成' })
+                        ]);
+                    } else if (progress.text) {
+                        // Special text like "自動判定"
+                        progressEl = el('div', { class: 'text-xs text-gray-500 mt-1', textContent: progress.text });
+                    } else if (progress.target > 0) {
+                        // Progress bar for locked achievements
+                        progressEl = el('div', { class: 'mt-2' }, [
+                            el('div', { class: 'flex justify-between text-xs text-gray-500 mb-1' }, [
+                                el('span', { textContent: `${progress.current} / ${progress.target}` }),
+                                el('span', { textContent: `${progress.percent}%` })
+                            ]),
+                            el('div', { class: 'h-2 bg-gray-200 rounded-full overflow-hidden' }, [
+                                el('div', {
+                                    class: 'h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-300',
+                                    style: `width: ${progress.percent}%`
+                                })
+                            ])
+                        ]);
+                    }
+
+                    return el('div', {
+                        class: `p-3 border rounded-lg flex items-start gap-3 transition-all relative overflow-hidden ${isUnlocked ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200' : 'bg-gray-50 border-gray-200'}`
+                    }, [
+                        el('div', { class: `text-4xl flex-shrink-0 ${isUnlocked ? '' : 'filter grayscale opacity-50'}`, textContent: ach.icon }),
+                        el('div', { class: 'flex-grow min-w-0' }, [
+                            titleEl,
+                            el('p', { class: 'text-xs text-gray-600 mt-0.5', textContent: ach.description }),
+                            progressEl
+                        ].filter(Boolean))
+                    ]);
+                });
+
+                sections.push(
+                    el('div', { class: 'mb-4' }, [
+                        el('h3', { class: 'text-sm font-bold text-gray-700 mb-2 pb-1 border-b border-gray-200', textContent: cat.name }),
+                        el('div', { class: 'space-y-2' }, sectionItems)
+                    ])
+                );
+            });
+
+            // Build modal content
+            const unlockedCount = unlockedAchievements.length;
+            const totalCount = allAchievements.length;
+
             const content = el('div', { class: 'card max-w-2xl w-full' }, [
-                el('h2', { class: 'text-2xl font-bold mb-6 text-gray-800 font-rounded', textContent: '我的成就' }),
-                el('div', { class: 'max-h-[70vh] overflow-y-auto space-y-3 pr-2' }, achievementItems),
-                el('button', { id: 'close-achievements-list-modal', class: 'mt-6 w-full btn-secondary py-2 font-bold', textContent: '關閉' })
+                el('div', { class: 'flex justify-between items-center mb-4' }, [
+                    el('h2', { class: 'text-2xl font-bold text-gray-800 font-rounded', textContent: '我的成就' }),
+                    el('span', { class: 'text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full', textContent: `${unlockedCount} / ${totalCount}` })
+                ]),
+                el('div', { class: 'max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar' }, sections),
+                el('button', { id: 'close-achievements-list-modal', class: 'mt-4 w-full btn-secondary py-2 font-bold', textContent: '關閉' })
             ]);
 
             const base = this._base('', 50);
@@ -1200,6 +1370,62 @@ async function initializeAppCore() {
         const savedUser = localStorage.getItem(`currentUser_${appId}`);
         if (savedUser) {
             appState.currentUser = JSON.parse(savedUser);
+
+            // 📌 每日登入檢查：即使從 localStorage 恢復，也要檢查是否新的一天
+            if (appState.currentUser.type === 'student' && appState.currentUser.studentId) {
+                try {
+                    const todayStr = getLocalDateString(new Date());
+                    const lastLoginStr = appState.currentUser.lastLoginDate
+                        ? getLocalDateString(new Date(appState.currentUser.lastLoginDate.seconds * 1000))
+                        : null;
+
+                    // 如果今天還沒更新過登入狀態
+                    if (lastLoginStr !== todayStr) {
+                        console.log("[Daily Login Check] New day detected, updating streak...");
+                        const studentDocRef = doc(db, `classes/${appState.currentUser.classId}/students`, appState.currentUser.studentId);
+                        const studentDoc = await getDoc(studentDocRef);
+
+                        if (studentDoc.exists()) {
+                            const studentData = studentDoc.data();
+                            let updates = {};
+
+                            // 計算連續登入
+                            const dbLastLoginStr = studentData.lastLoginDate
+                                ? getLocalDateString(studentData.lastLoginDate.toDate())
+                                : null;
+
+                            if (dbLastLoginStr !== todayStr) {
+                                const yesterday = new Date();
+                                yesterday.setDate(yesterday.getDate() - 1);
+                                const yesterdayStr = getLocalDateString(yesterday);
+
+                                if (dbLastLoginStr === yesterdayStr) {
+                                    updates.loginStreak = (studentData.loginStreak || 0) + 1;
+                                } else {
+                                    updates.loginStreak = 1;
+                                }
+                                updates.lastLoginDate = Timestamp.now();
+
+                                // 更新 Firestore
+                                await updateDoc(studentDocRef, updates);
+
+                                // 更新本地狀態
+                                Object.assign(appState.currentUser, updates, studentData);
+                                appState.currentUser.lastLoginDate = { seconds: Math.floor(Date.now() / 1000) };
+                                localStorage.setItem(`currentUser_${appId}`, JSON.stringify(appState.currentUser));
+
+                                console.log(`[Daily Login Check] Updated streak to: ${updates.loginStreak}`);
+
+                                // 檢查成就
+                                checkAndAwardAchievements(appState.currentUser.studentId, 'login', appState.currentUser);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error("[Daily Login Check] Error:", error);
+                }
+            }
+
             await loadStudentSubmissions(appState.currentUser.studentId);
             if (appState.currentUser.type === 'student') {
                 document.getElementById('teacher-view-btn').classList.add('hidden');
@@ -2688,7 +2914,11 @@ async function generateAssignment() {
 主題：「${topic}」
 請遵循以下專業要求：
 1.  **篇章撰寫**：
-    * **根據主題「${topic}」，發想一個更能吸引學生的正式標題(title)，但不可使用誇張或內容農場式的風格。**
+    * **標題設計**：根據主題「${topic}」，發想一個 **能引發學生好奇心並反映文章主旨** 的標題。請參考以下風格：
+        - 使用疑問句引發思考（如：「沉默，真的是金嗎？」）
+        - 使用對比製造張力（如：「最遠的距離，最近的心」）
+        - 使用隱喻增添韻味（如：「一座會呼吸的城市」）
+        - **絕不可**使用誇張、聳動或內容農場式風格
 	* **所有連續文本文字段落（包含第一段）的開頭都必須加上兩個全形空格「　　」來進行縮排。如果是詩歌體則不用。**
 	 * **連續文本文字段落間請務必空一行。**
     * ${styleInstruction}
@@ -2700,7 +2930,12 @@ ${difficultyInstruction}
     * 根據篇章，設計 5 道符合 PISA 閱讀素養三層次的單選題。
     * **試題必須是素養導向的**，旨在考驗學子的歸納、分析、批判與應用能力，而非僅是記憶。
     * **試題必須是客觀題，答案能直接或間接從文本中找到，絕不可出現『你認為』、『你覺得』等開放式問句。**
-    * **選項必須具有高誘答力**，錯誤選項需看似合理，能鑑別出學子的迷思概念。
+    * **選項設計要求（極重要）**：
+        - 錯誤選項必須反映學生常見的迷思概念（如：只看關鍵詞忽略上下文、混淆因果與相關、過度推論、斷章取義等）
+        - 錯誤選項不可有明顯語法或邏輯漏洞，必須看似合理
+        - 每題四個選項長度應相近，避免「最長選項是答案」的規律
+        - 正確答案在四個選項中的位置必須隨機分布（0, 1, 2, 3）
+    * **答題解析要求**：每題的 explanation 必須包含：(1) 明確說明正確答案的原因並引用原文佐證 (2) 逐一解釋其他三個選項為何錯誤
     * ${questionLevelInstruction}
 3.  **標籤要求**：
     * **形式**: 請生成「${tagFormat}」形式的內容。
@@ -2825,6 +3060,11 @@ async function handleGenerateQuestionsFromPasted() {
     * **試題必須是素養導向的**，旨在考驗學子的歸納、分析、批判與應用能力。
     * **試題必須是客觀題，答案能直接或間接從文本中找到，絕不可出現『你認為』、『你覺得』等開放式問句。**
     * 試題層次分配如下：第 1 題：**擷取與檢索**。第 2、3 題：**統整與解釋**。第 4、5 題：**省思與評鑑**。
+    * **選項設計要求（極重要）**：
+        - 錯誤選項必須反映學生常見的迷思概念（如：只看關鍵詞忽略上下文、混淆因果與相關、過度推論、斷章取義等）
+        - 錯誤選項不可有明顯語法或邏輯漏洞，必須看似合理
+        - 每題四個選項長度應相近，避免「最長選項是答案」的規律
+    * **答題解析要求**：每題的 explanation 必須包含：(1) 明確說明正確答案的原因並引用原文佐證 (2) 逐一解釋其他三個選項為何錯誤
 2.  **JSON 結構說明 (極度重要)**：
     * **\`options\`**：這是一個包含四個字串的陣列，代表四個選項。
     * **\`correctAnswerIndex\`**：這是一個**數字**，代表正確答案在 \`options\` 陣列中的**索引 (index)**。索引從 0 開始計算。
@@ -4694,6 +4934,47 @@ function setupEventListeners() {
     dom.highlightToolbar.addEventListener('mousedown', handleHighlightToolbarAction);
     dom.highlightToolbar.addEventListener('touchstart', handleHighlightToolbarAction);
 
+    // --- 底部導航列事件監聽 (手機版) ---
+    const mobileNav = document.getElementById('mobile-bottom-nav');
+    const navHomeBtn = document.getElementById('nav-home-btn');
+    const navAssignmentsBtn = document.getElementById('nav-assignments-btn');
+    const navAchievementsBtn = document.getElementById('nav-achievements-btn');
+
+    function updateMobileNavState(activeBtn) {
+        mobileNav?.querySelectorAll('.mobile-nav-btn').forEach(btn => btn.classList.remove('active'));
+        activeBtn?.classList.add('active');
+    }
+
+    navHomeBtn?.addEventListener('click', () => {
+        updateMobileNavState(navHomeBtn);
+        showArticleGrid();
+    });
+
+    navAssignmentsBtn?.addEventListener('click', () => {
+        updateMobileNavState(navAssignmentsBtn);
+        if (appState.currentUser && appState.currentUser.studentId) {
+            displayStudentAnalysis(appState.currentUser.studentId);
+        }
+    });
+
+    navAchievementsBtn?.addEventListener('click', () => {
+        updateMobileNavState(navAchievementsBtn);
+        renderAchievementsList();
+    });
+
+    // --- 回到頂部按鈕事件監聽 ---
+    const scrollTopBtn = document.getElementById('scroll-to-top-btn');
+
+    window.addEventListener('scroll', () => {
+        if (scrollTopBtn) {
+            scrollTopBtn.classList.toggle('visible', window.scrollY > 300);
+        }
+    }, { passive: true });
+
+    scrollTopBtn?.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
     // Use event delegation on the body for dynamically added elements
     document.body.addEventListener('click', e => {
         const target = e.target;
@@ -5372,58 +5653,52 @@ async function renderAchievementsList() {
     showLoading('讀取成就...');
 
     try {
-        // Fetch all achievement definitions
-        // Fetch all achievement definitions from the root collection
+        // 1. Fetch all achievement definitions
         const achievementsQuery = query(collection(db, "achievements"), orderBy("createdAt", "desc"));
         const allAchievementsSnapshot = await getDocs(achievementsQuery);
         const allAchievements = allAchievementsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-        // Fetch unlocked achievements for the current student
-        // Fetch unlocked achievements for the current student from the root collection
+        // 2. Fetch unlocked achievements for the current student
         const unlockedQuery = query(collection(db, "student_achievements"), where("studentId", "==", appState.currentUser.studentId));
         const unlockedSnapshot = await getDocs(unlockedQuery);
         const unlockedAchievements = unlockedSnapshot.docs.map(doc => doc.data());
 
-        // This is the desired order, based on the form dropdown.
-        const typeOrder = [
-            'submission_count', 'login_streak', 'high_score_streak', 'completion_streak',
-            'average_score', 'genre_explorer', 'weekly_progress',
-            'read_tag_contentType_記敘', 'read_tag_contentType_抒情', 'read_tag_contentType_說明', 'read_tag_contentType_議論', 'read_tag_contentType_應用',
-            'read_tag_difficulty_基礎', 'read_tag_difficulty_普通', 'read_tag_difficulty_進階', 'read_tag_difficulty_困難'
+        // 3. Get student submissions for progress calculation
+        const studentSubmissions = appState.allSubmissions || [];
+
+        // 4. Define achievement categories for grouping
+        const categoryOrder = [
+            { key: 'basic', name: '📚 基本成就', types: ['submission_count', 'login_streak', 'high_score_streak', 'completion_streak'] },
+            { key: 'performance', name: '🎯 學習表現', types: ['average_score', 'genre_explorer', 'weekly_progress'] },
+            { key: 'content', name: '📖 閱讀廣度 (內容)', types: ['read_tag_contentType_記敘', 'read_tag_contentType_抒情', 'read_tag_contentType_說明', 'read_tag_contentType_議論', 'read_tag_contentType_應用'] },
+            { key: 'difficulty', name: '⭐ 閱讀廣度 (難度)', types: ['read_tag_difficulty_基礎', 'read_tag_difficulty_普通', 'read_tag_difficulty_進階', 'read_tag_difficulty_困難'] }
         ];
 
         const unlockedIds = new Set(unlockedAchievements.map(ua => ua.achievementId));
 
-        const filteredAndSorted = allAchievements
-            .filter(ach => ach.isEnabled && (!ach.isHidden || unlockedIds.has(ach.id)))
-            .sort((a, b) => {
-                const keysA = getAchievementSortKeys(a);
-                const keysB = getAchievementSortKeys(b);
+        // 5. Filter and categorize achievements
+        const filteredAchievements = allAchievements
+            .filter(ach => ach.isEnabled && (!ach.isHidden || unlockedIds.has(ach.id)));
 
-                const indexA = typeOrder.indexOf(keysA.type);
-                const indexB = typeOrder.indexOf(keysB.type);
-
-                if (indexA !== indexB) {
-                    if (indexA === -1) return 1;
-                    if (indexB === -1) return -1;
-                    return indexA - indexB;
-                }
-                if (keysA.conditionCount !== keysB.conditionCount) {
-                    return keysA.conditionCount - keysB.conditionCount;
-                }
-                return keysA.value - keysB.value;
-            });
-
-        const modalAchievements = filteredAndSorted.map(ach => ({
-            id: ach.id,
-            title: ach.name,
-            description: ach.description,
-            icon: ach.icon
-        }));
+        // 6. Prepare achievements with full data for progress calculation
+        const modalAchievements = filteredAchievements.map(ach => {
+            const condition = (ach.conditions && ach.conditions.length > 0) ? ach.conditions[0] : null;
+            return {
+                id: ach.id,
+                title: ach.name,
+                description: ach.description,
+                icon: ach.icon,
+                condition: condition,
+                conditions: ach.conditions || []
+            };
+        });
 
         await renderModal('achievementsList', {
             allAchievements: modalAchievements,
-            unlockedAchievements
+            unlockedAchievements,
+            studentData: appState.currentUser,
+            studentSubmissions,
+            categoryOrder
         });
 
     } catch (error) {
@@ -5500,7 +5775,7 @@ async function renderAchievementManagement() {
                         el('p', { class: 'text-sm text-gray-600', textContent: ach.description }),
                         el('div', { class: 'text-xs text-gray-500 mt-1 flex flex-wrap gap-1' },
                             (ach.conditions && ach.conditions.length > 0)
-                                ? ach.conditions.map(c => el('code', { class: 'bg-gray-100 px-1 rounded' }, [`${getConditionTypeName(c.type)}: ${c.value}`]))
+                                ? ach.conditions.map(c => el('code', { class: 'bg-gray-100 px-1 rounded' }, [`${getConditionTypeName(c.type)}${c.value !== undefined ? ': ' + c.value : ''}`]))
                                 : [
                                     el('code', { class: 'bg-gray-100 px-1 rounded', textContent: `類型: ${ach.type || 'N/A'}` }),
                                     el('code', { class: 'bg-gray-100 px-1 rounded', textContent: `條件值: ${ach.value || 'N/A'}` })
