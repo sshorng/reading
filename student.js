@@ -201,9 +201,9 @@ export async function submitQuiz(assignment) {
         submissionData = {
             ...existingRecord,
             attempts: attempts,
-            // 每次更新最後的答案跟時間，但是獎勵與狀態判定仍以 firstAttempt 為主
+            // 頂層 score 保留第一次成績，不隨後續挑戰覆寫
+            // 後續答案與時間記錄在 attempts 中，完成判定用 highestScore
             answers: userAnswers,
-            score: finalScore,
             submittedAt: Timestamp.now(),
             durationSeconds: durationSeconds
         };

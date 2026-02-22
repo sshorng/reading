@@ -40,7 +40,8 @@ export async function loadSubmissionsByAssignment(assignmentId) {
     if (!assignmentId) return [];
     const submissionsQuery = query(
         collection(db, "submissions"),
-        where('assignmentId', '==', assignmentId)
+        where('assignmentId', '==', assignmentId),
+        limit(500) // 效能防護
     );
     try {
         const snapshot = await getDocs(submissionsQuery);

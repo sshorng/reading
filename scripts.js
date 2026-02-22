@@ -544,8 +544,6 @@ export function switchViewTab(view) {
 
 
 
-
-
 export async function calculateCompletionStreak(studentId, studentData) {
     console.log(`[Completion Streak] Starting check for student ${studentId}`);
     const updates = {};

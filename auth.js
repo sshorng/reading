@@ -1,4 +1,4 @@
-import { appState, TEACHER_PASSWORD_HASH, dom, auth, db } from './state.js';
+import { appState, TEACHER_PASSWORD_HASH, dom, auth, db, appId } from './state.js';
 import { hashString, generateDefaultPassword, getLocalDateString } from './utils.js';
 import { renderModal, showLoading, hideLoading } from './ui.js';
 import { loadStudentSubmissions } from './api.js';
@@ -6,7 +6,8 @@ import { signInAnonymously, onAuthStateChanged, signOut, signInWithCustomToken }
 import { doc, getDoc, updateDoc, Timestamp, collection, getDocs, query, where, setDoc } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
 
 // Import UI functions from script.js
-import { showView, updateHeader, loadAllData, showArticleGrid } from './scripts.js';
+import { showView, updateHeader, loadAllData, showArticleGrid, processUserLogin } from './scripts.js';
+import { checkAndAwardAchievements } from './student.js';
 
 export async function handleStudentLogin() {
     const errorEl = document.getElementById('login-error');
@@ -46,50 +47,8 @@ export async function handleStudentLogin() {
         appState.currentUser = { type: 'student', studentId, name: studentData.name, seatNumber: studentData.seatNumber, classId, className, ...studentData };
         localStorage.setItem(`currentUser_${appId}`, JSON.stringify(appState.currentUser));
 
-        // --- Streak Calculation on Login ---
-        try {
-            console.log("--- Starting Streak Calculation ---");
-            let updates = {};
-            const todayStr = getLocalDateString(new Date());
-
-            // 1. Login Streak
-            const lastLoginDate = studentData.lastLoginDate;
-            const lastLoginStr = (lastLoginDate && typeof lastLoginDate.toDate === 'function') ? getLocalDateString(lastLoginDate.toDate()) : null;
-
-            if (lastLoginStr !== todayStr) {
-                const yesterday = new Date();
-                yesterday.setDate(yesterday.getDate() - 1);
-                const yesterdayStr = getLocalDateString(yesterday);
-                if (lastLoginStr === yesterdayStr) {
-                    updates.loginStreak = (studentData.loginStreak || 0) + 1;
-                } else {
-                    updates.loginStreak = 1;
-                }
-                updates.lastLoginDate = Timestamp.now();
-                console.log(`[Login Streak] New streak: ${updates.loginStreak}`);
-            } else {
-                console.log("[Login Streak] Already logged in today.");
-            }
-
-            // 2. Completion Streak (100% completion of due assignments)
-            const completionUpdates = await calculateCompletionStreak(studentId, { ...studentData, ...updates });
-            updates = { ...updates, ...completionUpdates };
-
-            // 3. Update Firestore if there are any changes
-            if (Object.keys(updates).length > 0) {
-                console.log("Updating Firestore with:", updates);
-                await updateDoc(studentDocRef, updates);
-                Object.assign(appState.currentUser, updates);
-                console.log("Firestore updated successfully.");
-            } else {
-                console.log("No streak updates needed.");
-            }
-
-            checkAndAwardAchievements(studentId, 'login', appState.currentUser);
-
-        } catch (error) {
-            console.error("CRITICAL: Error during streak calculation:", error);
-        }
+        // --- Streak Calculation on Login (統一使用 processUserLogin) ---
+        await processUserLogin(studentData, studentId, classId);
 
         await loadStudentSubmissions(appState.currentUser.studentId);
         showView('app');
@@ -249,7 +208,7 @@ export async function handleChangePassword() {
 
 
 export function initializeAuthObserver() {
-
+    // 認證狀態監聽（目前由匿名登入處理，保留擴充介面）
 }
 
 window.handleTeacherLogin = handleTeacherLogin;
