@@ -4,6 +4,10 @@ import { el, escapeHtml, normalizeClassName, markdownToHtml } from './utils.js';
 export function closeModal() {
     const lastModal = dom.modalContainer.lastElementChild;
     if (lastModal) {
+        // P2-2: 透過 AbortController 自動移除事件監聽器，防止記憶體洩漏
+        if (lastModal._abortController) {
+            lastModal._abortController.abort();
+        }
         lastModal.remove();
     }
 }
@@ -507,60 +511,65 @@ export const modalHtmlGenerators = {
     },
 }
 
-export function renderModal(type, data = {}) {
-    return new Promise(async (resolve, reject) => {
-        const generator = modalHtmlGenerators[type];
-        if (!generator) {
-            console.error(`Modal type "${type}" not found.`);
-            return reject(new Error(`Modal type "${type}" not found.`));
+// P2-1: 改為正規 async function，避免 new Promise(async) 反模式
+export async function renderModal(type, data = {}) {
+    const generator = modalHtmlGenerators[type];
+    if (!generator) {
+        console.error(`Modal type "${type}" not found.`);
+        throw new Error(`Modal type "${type}" not found.`);
+    }
+
+    try {
+        showLoading('載入中...');
+        const modalHtml = await generator.call(modalHtmlGenerators, data);
+
+        if (!modalHtml) {
+            hideLoading();
+            return null;
         }
 
-        try {
-            showLoading('載入中...');
-            const modalHtml = await generator.call(modalHtmlGenerators, data);
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = modalHtml;
+        const modalElement = tempDiv.firstElementChild;
+        dom.modalContainer.appendChild(modalElement);
 
-            if (!modalHtml) {
-                hideLoading();
-                return resolve(null);
-            }
-
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = modalHtml;
-            const modalElement = tempDiv.firstElementChild;
-            dom.modalContainer.appendChild(modalElement);
-
-            // Handle prompt-like modals that need to return a value
-            if (type === 'aiAnalysisRefine') {
+        // Handle prompt-like modals that need to return a value
+        if (type === 'aiAnalysisRefine') {
+            return new Promise((resolve) => {
                 const confirmBtn = modalElement.querySelector('#confirm-ai-analysis-refine-btn');
                 const cancelBtn = modalElement.querySelector('#cancel-ai-analysis-refine-btn');
                 const input = modalElement.querySelector('#ai-analysis-refine-prompt');
 
                 const close = (value) => {
+                    if (modalElement._abortController) modalElement._abortController.abort();
                     modalElement.remove();
-                    resolve(value); // Resolve the promise with the input value or null
+                    resolve(value);
                 };
 
                 confirmBtn.onclick = () => close(input.value);
                 cancelBtn.onclick = () => close(null);
-
-            } else {
-                // For other modals, attach standard listeners and resolve without a specific value
-                attachModalEventListeners(type, data);
-                resolve();
-            }
-        } catch (error) {
-            console.error(`Error rendering modal "${type}":`, error);
-            renderModal('message', { title: '錯誤', message: '無法載入視窗內容。' });
-            reject(error);
-        } finally {
-            hideLoading();
+            });
+        } else {
+            // For other modals, attach standard listeners
+            attachModalEventListeners(type, data);
+            return undefined;
         }
-    });
+    } catch (error) {
+        console.error(`Error rendering modal "${type}":`, error);
+        renderModal('message', { title: '錯誤', message: '無法載入視窗內容。' });
+        throw error;
+    } finally {
+        hideLoading();
+    }
 }
 
 export function attachModalEventListeners(type, data = {}) {
     const modalInstance = dom.modalContainer.lastElementChild;
     if (!modalInstance) return;
+
+    // P2-2: 使用 AbortController 管理事件生命週期
+    const controller = new AbortController();
+    modalInstance._abortController = controller;
 
     const clickHandler = (e) => {
         const target = e.target;
@@ -570,7 +579,11 @@ export function attachModalEventListeners(type, data = {}) {
         // General close actions for all modals
         if (target === modalInstance || targetId?.includes('close-') || targetId?.includes('cancel-')) {
             if (targetId === 'close-result-modal') {
-                dom.modalContainer.innerHTML = ''; // Clear all modals
+                // 清除所有 modal 時，逐一 abort 所有 controller
+                Array.from(dom.modalContainer.children).forEach(child => {
+                    if (child._abortController) child._abortController.abort();
+                });
+                dom.modalContainer.innerHTML = '';
                 if (appState.currentAssignment) {
                     if (typeof window.displayAssignment === 'function') window.displayAssignment(appState.currentAssignment);
                 } else {
@@ -586,7 +599,7 @@ export function attachModalEventListeners(type, data = {}) {
         switch (targetId) {
             case 'password-submit-btn': if (typeof window.handleTeacherLogin === 'function') window.handleTeacherLogin(e); break;
             case 'view-analysis-btn':
-                const assignment = data.assignment; // Assuming assignment data is passed to the result modal
+                const assignment = data.assignment;
                 if (assignment) {
                     if (typeof window.displayAnalysis === 'function') window.displayAnalysis(assignment);
                 } else {
@@ -635,8 +648,8 @@ export function attachModalEventListeners(type, data = {}) {
         }
     };
 
-    // Add a single, unique event listener to the modal instance
-    modalInstance.addEventListener('click', clickHandler);
+    // 使用 signal 綁定事件，closeModal 時自動解除
+    modalInstance.addEventListener('click', clickHandler, { signal: controller.signal });
 }
 
 export function showLoading(message) {
