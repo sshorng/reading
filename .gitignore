@@ -1,0 +1,27 @@
+# Gemini / AI Assistant files
+.gemini/
+brain/
+*.log
+
+# Environment files
+.env
+.env.local
+
+# Dependency directories
+node_modules/
+dist/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backup files
+*-backup.js
+*.bak
+recovery/
+.git/
+# Google Drive specific
+Desktop.ini
+icon?
+~$*
