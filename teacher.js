@@ -2402,6 +2402,7 @@ export async function renderSystemSettings() {
     const currentSettings = settingsDoc.exists() ? settingsDoc.data() : {};
     const currentApiKey = currentSettings.gemini || "";
     const currentModel = currentSettings.model || DEFAULT_GEMINI_MODEL;
+    const currentTeacherModel = currentSettings.teacherModel || currentModel;
 
     const settingsHtml = el('div', { class: 'card max-w-2xl mx-auto' }, [
         el('h2', { class: 'text-2xl font-bold mb-6 text-gray-800 font-rounded', textContent: '系統設定' }),
@@ -2412,9 +2413,14 @@ export async function renderSystemSettings() {
                 el('p', { class: 'text-xs text-gray-500 mt-2', textContent: '此金鑰將被安全地儲存在您的 Firestore 資料庫中。' })
             ]),
             el('div', {}, [
-                el('label', { for: 'gemini-model-input', class: 'font-bold text-sm text-gray-600', textContent: 'Gemini AI 模型' }),
-                el('input', { type: 'text', id: 'gemini-model-input', class: 'w-full form-element-ink mt-1', value: currentModel, placeholder: '例如：gemini-1.5-flash' }),
-                el('p', { class: 'text-xs text-gray-500 mt-2', textContent: '請輸入您希望使用的 Gemini 模型名稱。' })
+                el('label', { for: 'gemini-model-input', class: 'font-bold text-sm text-gray-600', textContent: '前台 AI 模型（學生端）' }),
+                el('input', { type: 'text', id: 'gemini-model-input', class: 'w-full form-element-ink mt-1', value: currentModel, placeholder: '例如：gemini-2.5-flash' }),
+                el('p', { class: 'text-xs text-gray-500 mt-2', textContent: '學生端互動式學習、心智圖對話所使用的模型。' })
+            ]),
+            el('div', {}, [
+                el('label', { for: 'gemini-teacher-model-input', class: 'font-bold text-sm text-gray-600', textContent: '後台 AI 模型（教師端）' }),
+                el('input', { type: 'text', id: 'gemini-teacher-model-input', class: 'w-full form-element-ink mt-1', value: currentTeacherModel, placeholder: '例如：gemini-2.5-pro' }),
+                el('p', { class: 'text-xs text-gray-500 mt-2', textContent: '教師端文章生成、解析分析、成就發想所使用的模型。' })
             ])
         ]),
         el('p', { id: 'settings-feedback', class: 'text-sm h-4 mt-4' }),
@@ -2430,12 +2436,14 @@ export async function renderSystemSettings() {
 export async function handleSaveApiKey() {
     const keyInput = document.getElementById('gemini-api-key-input');
     const modelInput = document.getElementById('gemini-model-input');
+    const teacherModelInput = document.getElementById('gemini-teacher-model-input');
     const feedbackEl = document.getElementById('settings-feedback');
 
     const newApiKey = keyInput.value.trim();
     const newModel = modelInput.value.trim();
+    const newTeacherModel = teacherModelInput.value.trim();
 
-    if (!newApiKey || !newModel) {
+    if (!newApiKey || !newModel || !newTeacherModel) {
         feedbackEl.textContent = '金鑰和模型名稱皆不可為空。';
         feedbackEl.className = 'text-red-500 text-sm h-4 mt-4';
         return;
@@ -2444,11 +2452,12 @@ export async function handleSaveApiKey() {
     showLoading('儲存中...');
     try {
         const docRef = doc(db, "settings", "api_keys");
-        await setDoc(docRef, { gemini: newApiKey, model: newModel }, { merge: true });
+        await setDoc(docRef, { gemini: newApiKey, model: newModel, teacherModel: newTeacherModel }, { merge: true });
 
         // Update the state immediately
         appState.geminiApiKey = newApiKey;
         appState.geminiModel = newModel;
+        appState.teacherGeminiModel = newTeacherModel;
 
         feedbackEl.textContent = '設定已成功儲存！';
         feedbackEl.className = 'text-green-600 text-sm h-4 mt-4';
