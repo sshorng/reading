@@ -171,7 +171,7 @@ export async function updateArticleLibraryPanel(classId, selectedArticleId = nul
                 el('input', { type: 'date', id: 'deadline-input', class: 'w-full input-styled mt-1' })
             ]),
             el('div', { class: 'form-check items-center flex gap-2 my-3' }, [
-                el('input', { class: 'form-check-input w-5 h-5', type: 'checkbox', id: 'ai-is-public', checked: true }),
+                el('input', { class: 'form-check-input w-5 h-5', type: 'checkbox', id: 'ai-is-public', checked: false }),
                 el('label', { class: 'form-check-label font-bold', htmlFor: 'ai-is-public', textContent: '將此篇章設為公開' })
             ]),
             el('button', { id: 'generate-btn', class: 'w-full btn-primary py-3 text-base font-bold', textContent: '生成' })
@@ -193,7 +193,7 @@ export async function updateArticleLibraryPanel(classId, selectedArticleId = nul
                 el('input', { type: 'date', id: 'pasted-deadline-input', class: 'w-full input-styled mt-1' })
             ]),
             el('div', { class: 'form-check items-center flex gap-2 my-3' }, [
-                el('input', { class: 'form-check-input w-5 h-5', type: 'checkbox', id: 'pasted-is-public', checked: true }),
+                el('input', { class: 'form-check-input w-5 h-5', type: 'checkbox', id: 'pasted-is-public', checked: false }),
                 el('label', { class: 'form-check-label font-bold', htmlFor: 'pasted-is-public', textContent: '將此篇章設為公開' })
             ]),
             el('div', { class: 'flex gap-4 mt-2' }, [
