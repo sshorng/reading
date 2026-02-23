@@ -811,10 +811,18 @@ export async function fetchAssignmentsPage(isNewQuery = false) {
             if (filters.contentType && a.tags?.contentType !== filters.contentType) return false;
             if (filters.difficulty && a.tags?.difficulty !== filters.difficulty) return false;
             if (filters.status) {
-                const completedIds = new Set(appState.allSubmissions.map(s => s.assignmentId));
-                const isCompleted = completedIds.has(a.id);
-                if (filters.status === 'complete' && !isCompleted) return false;
-                if (filters.status === 'incomplete' && isCompleted) return false;
+                const studentId = appState.currentUser?.studentId;
+                const userSubs = studentId ? appState.allSubmissions.filter(s => s.studentId === studentId) : appState.allSubmissions;
+                const passedIds = new Set(userSubs.filter(s => {
+                    let best = s.score || 0;
+                    if (s.attempts && s.attempts.length > 0) {
+                        best = Math.max(...s.attempts.map(a => a.score));
+                    }
+                    return best >= 60;
+                }).map(s => s.assignmentId));
+                const isPassed = passedIds.has(a.id);
+                if (filters.status === 'complete' && !isPassed) return false;
+                if (filters.status === 'incomplete' && isPassed) return false;
             }
             return true;
         });
