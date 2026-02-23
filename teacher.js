@@ -1311,7 +1311,14 @@ export async function updateAssignedArticlesList() {
     try {
         const allAssignments = await getAssignments();
         const userSubmissions = appState.allSubmissions.filter(s => s.studentId === appState.currentUser.studentId);
-        const completedAssignmentIds = new Set(userSubmissions.map(s => s.assignmentId));
+        // Only consider "passed" (highest score >= 60) as truly completed
+        const passedAssignmentIds = new Set(userSubmissions.filter(s => {
+            let highestScore = s.score || 0;
+            if (s.attempts && s.attempts.length > 0) {
+                highestScore = Math.max(...s.attempts.map(a => a.score));
+            }
+            return highestScore >= 60;
+        }).map(s => s.assignmentId));
 
         const isStudentUser = appState.currentUser?.type === 'student';
         let assignmentsToRender = allAssignments.filter(a => {
@@ -1319,7 +1326,7 @@ export async function updateAssignedArticlesList() {
             if (isStudentUser && a.isPublic !== true) {
                 return false;
             }
-            return a.deadline && !completedAssignmentIds.has(a.id);
+            return a.deadline && !passedAssignmentIds.has(a.id);
         });
         assignmentsToRender.sort((a, b) => a.deadline.toMillis() - b.deadline.toMillis());
 
