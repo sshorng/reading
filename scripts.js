@@ -963,12 +963,12 @@ export async function displayAssignment(assignment) {
     const lastAttempt = isCompleted ? (submission.attempts && submission.attempts.length > 0 ? submission.attempts[submission.attempts.length - 1] : submission) : null;
     const lastAttemptAnswers = lastAttempt ? lastAttempt.answers : null;
 
-    // 冷卻時間邏輯 (3分鐘 = 180秒)
+    // 冷卻時間邏輯 (1分鐘 = 60秒)
     let cooldownRemainingSeconds = 0;
     if (isCompleted && !isPassed && lastAttempt && lastAttempt.submittedAt && lastAttempt.submittedAt.toDate) {
         const lastSubmittedMs = lastAttempt.submittedAt.toDate().getTime();
         const diffMs = Date.now() - lastSubmittedMs;
-        const cooldownMs = 3 * 60 * 1000;
+        const cooldownMs = 1 * 60 * 1000;
         if (diffMs < cooldownMs) {
             cooldownRemainingSeconds = Math.ceil((cooldownMs - diffMs) / 1000);
         }
