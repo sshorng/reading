@@ -1181,7 +1181,7 @@ export async function displayAssignment(assignment) {
 
 /**
  * Dynamically loads Mermaid library on demand.
- * Uses Mermaid v9.4.3 for broader browser/device compatibility.
+ * Uses Mermaid v10 for best features; falls back to mermaid.ink image service on old devices.
  */
 function loadMermaidLibrary() {
     if (window.mermaid) return Promise.resolve(true);
@@ -1189,9 +1189,9 @@ function loadMermaidLibrary() {
 
     const promise = new Promise((resolve) => {
         const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/mermaid@9.4.3/dist/mermaid.min.js';
+        script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
         script.onload = () => {
-            console.log('[Mermaid] Library v9.4.3 loaded.');
+            console.log('[Mermaid] Library v10 loaded.');
             resolve(true);
         };
         script.onerror = () => {
