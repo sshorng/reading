@@ -101,9 +101,14 @@ export function markdownToHtml(text) {
     // 1. Replace all mermaid blocks with placeholders
     const textWithPlaceholders = text.replace(mermaidRegex, (match, mermaidContent) => {
         const placeholder = `__MERMAID_PLACEHOLDER_${placeholderId++}__`;
-        // The 'white-space: pre' style is crucial to preserve the line breaks for the Mermaid parser.
-        // Removed .trim() to avoid altering mermaid syntax indentation.
-        placeholders.push(`<div class="mermaid" style="white-space: pre;">${mermaidContent}</div>`);
+        // HTML-escape the mermaid content so the browser doesn't interpret
+        // characters like <, >, & as HTML tags (preserves original syntax).
+        // textContent will still return the correct decoded characters.
+        const escaped = mermaidContent
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        placeholders.push(`<div class="mermaid" style="white-space: pre;">${escaped}</div>`);
         return placeholder;
     });
 
