@@ -1182,7 +1182,6 @@ export async function displayAssignment(assignment) {
 /**
  * Dynamically loads Mermaid library on demand.
  * Uses Mermaid v9.4.3 for broader browser/device compatibility.
- * (v10 uses D3 v7 + modern JS APIs that crash on older Safari/Chrome.)
  */
 function loadMermaidLibrary() {
     if (window.mermaid) return Promise.resolve(true);
@@ -1192,11 +1191,11 @@ function loadMermaidLibrary() {
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/mermaid@9.4.3/dist/mermaid.min.js';
         script.onload = () => {
-            console.log('[Mermaid] Library v9.4.3 loaded successfully.');
+            console.log('[Mermaid] Library v9.4.3 loaded.');
             resolve(true);
         };
         script.onerror = () => {
-            console.warn('[Mermaid] Failed to load library.');
+            console.warn('[Mermaid] Library failed to load.');
             resolve(false);
         };
         document.head.appendChild(script);
@@ -1206,11 +1205,55 @@ function loadMermaidLibrary() {
 }
 
 /**
- * Shows a graceful fallback for Mermaid diagrams that cannot be rendered.
- * Displays the raw syntax in a styled code block instead of a red error.
- * @param {HTMLElement} element - The .mermaid element
- * @param {string} reason - Display reason text
- * @param {string} [rawText] - Pre-cached raw text (important: must be cached BEFORE any DOM mutation)
+ * Encode UTF-8 text to base64 (works with Chinese characters).
+ */
+function textToBase64(text) {
+    try {
+        const utf8Bytes = new TextEncoder().encode(text);
+        let binaryStr = '';
+        for (let i = 0; i < utf8Bytes.length; i++) {
+            binaryStr += String.fromCharCode(utf8Bytes[i]);
+        }
+        return btoa(binaryStr);
+    } catch (e) {
+        // Fallback for very old browsers without TextEncoder
+        return btoa(unescape(encodeURIComponent(text)));
+    }
+}
+
+/**
+ * Renders a Mermaid diagram as an image via the mermaid.ink cloud service.
+ * This works on ANY device since it's just an <img> tag.
+ * Falls back to text display if the image also fails.
+ */
+function renderMermaidAsImage(element, graphDefinition, rawText) {
+    if (element.getAttribute('data-processed') === 'true') return;
+
+    const base64 = textToBase64(graphDefinition);
+    const imageUrl = `https://mermaid.ink/svg/${base64}`;
+
+    element.innerHTML = '<div class="text-center p-6 text-slate-400 text-sm">圖表載入中...</div>';
+
+    const img = new Image();
+    img.onload = () => {
+        element.innerHTML = '';
+        img.style.maxWidth = '100%';
+        img.style.height = 'auto';
+        img.alt = '圖表';
+        element.appendChild(img);
+        element.classList.remove('mermaid');
+        element.setAttribute('data-processed', 'true');
+    };
+    img.onerror = () => {
+        console.warn('[Mermaid] mermaid.ink image also failed.');
+        showMermaidFallback(element, '此圖表無法渲染', rawText);
+    };
+    img.src = imageUrl;
+}
+
+/**
+ * Last-resort text fallback for Mermaid diagrams.
+ * Displays the raw syntax in a styled code block.
  */
 function showMermaidFallback(element, reason, rawText) {
     if (element.getAttribute('data-processed') === 'true') return;
@@ -1226,17 +1269,27 @@ function showMermaidFallback(element, reason, rawText) {
     element.setAttribute('data-processed', 'true');
 }
 
+/**
+ * Renders all Mermaid diagrams in a container.
+ * 
+ * Three-tier fallback strategy:
+ *   1. Client-side Mermaid JS rendering (fastest, modern devices)
+ *   2. mermaid.ink cloud image service (works on any device with internet)
+ *   3. Raw text display (works everywhere)
+ */
 export async function renderAllMermaidDiagrams(container) {
     const mermaidElements = Array.from(container.querySelectorAll('.mermaid'));
     if (mermaidElements.length === 0) return;
 
-    // Cache raw text BEFORE any DOM mutation (mermaid.render may alter DOM)
+    // Cache raw text BEFORE any DOM mutation
     const rawTexts = mermaidElements.map(el => (el.textContent || el.innerText || '').trim());
 
-    // Step 1: Try to load the library
+    // Step 1: Try to load the client-side library
     const loaded = await loadMermaidLibrary();
     if (!loaded || !window.mermaid) {
-        mermaidElements.forEach((el, i) => showMermaidFallback(el, '圖表載入庫失敗，以文字顯示', rawTexts[i]));
+        // Library completely failed → use mermaid.ink image for ALL diagrams
+        console.log('[Mermaid] Library unavailable, using mermaid.ink image service.');
+        mermaidElements.forEach((el, i) => renderMermaidAsImage(el, rawTexts[i], rawTexts[i]));
         return;
     }
 
@@ -1261,7 +1314,7 @@ export async function renderAllMermaidDiagrams(container) {
         setMermaidInitialized(true);
     }
 
-    // Step 3: Render each diagram INDIVIDUALLY for error isolation
+    // Step 3: Render each diagram individually
     let renderedCount = 0;
     for (let i = 0; i < mermaidElements.length; i++) {
         const element = mermaidElements[i];
@@ -1275,20 +1328,20 @@ export async function renderAllMermaidDiagrams(container) {
 
         try {
             const uniqueId = `mermaid-svg-${Date.now()}-${i}`;
-            // mermaid.render(id, text) works in v9.4.x — returns { svg }
             const result = await window.mermaid.render(uniqueId, graphDefinition);
             const svgCode = (typeof result === 'string') ? result : result.svg;
             element.innerHTML = svgCode;
             element.setAttribute('data-processed', 'true');
             renderedCount++;
         } catch (err) {
-            console.warn(`[Mermaid] Diagram ${i} render failed:`, err);
-            showMermaidFallback(element, '此圖表無法在您的裝置上渲染', rawTexts[i]);
+            // Client-side render failed → try mermaid.ink image as fallback
+            console.warn(`[Mermaid] Diagram ${i} client render failed, trying mermaid.ink...`, err);
+            renderMermaidAsImage(element, rawTexts[i], rawTexts[i]);
         }
     }
 
     if (renderedCount > 0) {
-        console.log(`[Mermaid] Successfully rendered ${renderedCount}/${mermaidElements.length} diagram(s).`);
+        console.log(`[Mermaid] Client-rendered ${renderedCount}/${mermaidElements.length} diagram(s).`);
     }
 }
 
