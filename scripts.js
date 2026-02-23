@@ -1181,8 +1181,8 @@ export async function displayAssignment(assignment) {
 
 /**
  * Dynamically loads Mermaid library on demand.
- * Uses a shared promise to avoid duplicate loading.
- * Falls back gracefully if loading fails (e.g. on older devices).
+ * Uses Mermaid v9.4.3 for broader browser/device compatibility.
+ * (v10 uses D3 v7 + modern JS APIs that crash on older Safari/Chrome.)
  */
 function loadMermaidLibrary() {
     if (window.mermaid) return Promise.resolve(true);
@@ -1190,13 +1190,13 @@ function loadMermaidLibrary() {
 
     const promise = new Promise((resolve) => {
         const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+        script.src = 'https://cdn.jsdelivr.net/npm/mermaid@9.4.3/dist/mermaid.min.js';
         script.onload = () => {
-            console.log('[Mermaid] Library loaded successfully.');
+            console.log('[Mermaid] Library v9.4.3 loaded successfully.');
             resolve(true);
         };
         script.onerror = () => {
-            console.warn('[Mermaid] Failed to load library. Diagrams will show as text.');
+            console.warn('[Mermaid] Failed to load library.');
             resolve(false);
         };
         document.head.appendChild(script);
@@ -1208,67 +1208,87 @@ function loadMermaidLibrary() {
 /**
  * Shows a graceful fallback for Mermaid diagrams that cannot be rendered.
  * Displays the raw syntax in a styled code block instead of a red error.
+ * @param {HTMLElement} element - The .mermaid element
+ * @param {string} reason - Display reason text
+ * @param {string} [rawText] - Pre-cached raw text (important: must be cached BEFORE any DOM mutation)
  */
-function showMermaidFallback(element, reason) {
+function showMermaidFallback(element, reason, rawText) {
     if (element.getAttribute('data-processed') === 'true') return;
-    const rawText = element.textContent || element.innerText || '';
+    const displayText = rawText || element.textContent || element.innerText || '';
     element.innerHTML = `<div class="my-4 rounded-lg border-2 border-slate-200 overflow-hidden">
         <div class="bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-500 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             ${reason || '圖表 (您的裝置不支援即時渲染)'}
         </div>
-        <pre class="p-4 text-sm text-slate-700 bg-white overflow-x-auto whitespace-pre-wrap" style="margin:0;">${rawText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+        <pre class="p-4 text-sm text-slate-700 bg-white overflow-x-auto whitespace-pre-wrap" style="margin:0;">${displayText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
     </div>`;
     element.classList.remove('mermaid');
     element.setAttribute('data-processed', 'true');
 }
 
 export async function renderAllMermaidDiagrams(container) {
-    const mermaidElements = container.querySelectorAll('.mermaid');
+    const mermaidElements = Array.from(container.querySelectorAll('.mermaid'));
     if (mermaidElements.length === 0) return;
+
+    // Cache raw text BEFORE any DOM mutation (mermaid.render may alter DOM)
+    const rawTexts = mermaidElements.map(el => (el.textContent || el.innerText || '').trim());
 
     // Step 1: Try to load the library
     const loaded = await loadMermaidLibrary();
     if (!loaded || !window.mermaid) {
-        // Library failed to load — show fallback for all diagrams
-        mermaidElements.forEach(el => showMermaidFallback(el, '圖表載入庫失敗，以文字顯示'));
+        mermaidElements.forEach((el, i) => showMermaidFallback(el, '圖表載入庫失敗，以文字顯示', rawTexts[i]));
         return;
     }
 
-    try {
-        // Step 2: Initialize once
-        if (!mermaidInitialized) {
-            const elegantTheme = {
-                background: '#FFFFFF',
-                fontFamily: "'GenWanNeoSCjk', 'Noto Sans TC', sans-serif",
-                fontSize: '16px',
-                primaryColor: '#F3F4F6',
-                primaryBorderColor: '#D1D5DB',
-                primaryTextColor: '#111827',
-                lineColor: '#6B7280',
-                nodeTextColor: '#111827',
-            };
-            window.mermaid.initialize({
-                startOnLoad: false,
-                theme: 'base',
-                themeVariables: elegantTheme,
-                // Increase security timeout for slower devices
-                securityLevel: 'loose',
-            });
-            setMermaidInitialized(true);
+    // Step 2: Initialize once
+    if (!mermaidInitialized) {
+        const elegantTheme = {
+            background: '#FFFFFF',
+            fontFamily: "'GenWanNeoSCjk', 'Noto Sans TC', sans-serif",
+            fontSize: '16px',
+            primaryColor: '#F3F4F6',
+            primaryBorderColor: '#D1D5DB',
+            primaryTextColor: '#111827',
+            lineColor: '#6B7280',
+            nodeTextColor: '#111827',
+        };
+        window.mermaid.initialize({
+            startOnLoad: false,
+            theme: 'base',
+            themeVariables: elegantTheme,
+            securityLevel: 'loose',
+        });
+        setMermaidInitialized(true);
+    }
+
+    // Step 3: Render each diagram INDIVIDUALLY for error isolation
+    let renderedCount = 0;
+    for (let i = 0; i < mermaidElements.length; i++) {
+        const element = mermaidElements[i];
+        if (element.getAttribute('data-processed') === 'true') continue;
+
+        const graphDefinition = rawTexts[i];
+        if (!graphDefinition) {
+            showMermaidFallback(element, '圖表內容為空', '');
+            continue;
         }
 
-        // Step 3: Render
-        await window.mermaid.run({ nodes: mermaidElements });
-        console.log(`[Mermaid] Successfully rendered ${mermaidElements.length} diagram(s).`);
-    } catch (err) {
-        console.error('[Mermaid] Render error:', err);
-        // Fallback for any diagrams that failed to render
-        container.querySelectorAll('.mermaid').forEach(el => {
-            if (el.getAttribute('data-processed') !== 'true') {
-                showMermaidFallback(el, '圖表語法可能有誤，以文字顯示');
-            }
-        });
+        try {
+            const uniqueId = `mermaid-svg-${Date.now()}-${i}`;
+            // mermaid.render(id, text) works in v9.4.x — returns { svg }
+            const result = await window.mermaid.render(uniqueId, graphDefinition);
+            const svgCode = (typeof result === 'string') ? result : result.svg;
+            element.innerHTML = svgCode;
+            element.setAttribute('data-processed', 'true');
+            renderedCount++;
+        } catch (err) {
+            console.warn(`[Mermaid] Diagram ${i} render failed:`, err);
+            showMermaidFallback(element, '此圖表無法在您的裝置上渲染', rawTexts[i]);
+        }
+    }
+
+    if (renderedCount > 0) {
+        console.log(`[Mermaid] Successfully rendered ${renderedCount}/${mermaidElements.length} diagram(s).`);
     }
 }
 
