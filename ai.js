@@ -474,5 +474,58 @@ export async function callSingleGeminiAnalysis(articleText, target, action, orig
     return rawContent;
 }
 
+/**
+ * AI 求救：針對學生答錯的題目，給予引導式回饋（不直接給正確答案）。
+ * @param {string} article - 文章內容
+ * @param {Array} questions - 題目陣列
+ * @param {Array} userAnswers - 學生的答案陣列（index）
+ * @returns {Promise<string>} - markdown 格式的回饋文字
+ */
+export async function callAiHelp(article, questions, userAnswers) {
+    // 組裝錯誤題目的資訊
+    const wrongQuestions = questions.map((q, i) => {
+        const isCorrect = userAnswers[i] === q.correctAnswerIndex;
+        if (isCorrect) return null;
+        const userChoice = userAnswers[i] !== null ? q.options[userAnswers[i]] : '未作答';
+        return `【第 ${i + 1} 題】\n題目：${q.questionText}\n選項：\n${q.options.map((opt, j) => `  ${String.fromCharCode(65 + j)}. ${opt}`).join('\n')}\n學生選擇：${userChoice}`;
+    }).filter(Boolean);
+
+    if (wrongQuestions.length === 0) {
+        return '恭喜你全部答對了！繼續保持！';
+    }
+
+    const prompt = `你是一位有耐心、善於鼓勵的國文老師（書僮助教），學生剛完成一份閱讀測驗但答錯了一些題目，需要你的幫助。
+
+# 重要規則
+1. **絕對不要直接告訴學生正確答案是哪一個選項**
+2. 針對每一題答錯的題目，用鼓勵的語氣給予「思考方向的引導」
+3. 可以提示學生去文章中的哪個段落重新閱讀
+4. 可以用問句引導學生思考，例如「你覺得作者在這段想表達什麼？」
+5. 語氣溫暖、像朋友一樣陪伴，不要讓學生感到挫敗
+6. 每題的引導大約 2-3 句話就好，簡潔有力
+7. 用繁體中文回答
+
+# 文章內容
+"""
+${article.substring(0, 3000)}
+"""
+
+# 學生答錯的題目
+${wrongQuestions.join('\n\n')}
+
+# 回覆格式
+請用 Markdown 格式回覆，每題用 **粗體** 標示題號，例如：
+
+**第 1 題：**
+引導文字...
+
+**第 3 題：**
+引導文字...
+
+最後用一句話鼓勵學生再次挑戰。`;
+
+    return await callGenerativeAI(prompt);
+}
+
 window.handleAiRewrite = handleAiRewrite;
 window.handleAiGenerateAchievement = handleAiGenerateAchievement;

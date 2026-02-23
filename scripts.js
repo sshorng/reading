@@ -8,7 +8,7 @@ import { loadStudentSubmissions, loadSubmissionsByClass, loadSubmissionsByAssign
 
 import { closeModal, modalHtmlGenerators, renderModal, attachModalEventListeners, showLoading, hideLoading } from './ui.js';
 import { handleStudentLogin, handleTeacherLogin, handleLogout, handleChangePassword, initializeAuthObserver } from './auth.js';
-import { callGenerativeAI, callFullGeminiAnalysis, handleAnalysisAI, handleAiRewrite, handleAiGenerateAchievement, callAchievementAI, callSingleGeminiAnalysis } from './ai.js';
+import { callGenerativeAI, callFullGeminiAnalysis, handleAnalysisAI, handleAiRewrite, handleAiGenerateAchievement, callAchievementAI, callSingleGeminiAnalysis, callAiHelp } from './ai.js';
 
 // Teacher & Student modules
 import { renderTeacherUI, switchTeacherTab, updateBulkActionsVisibility, updateTeacherLoadMoreButton, renderTeacherArticleTable, updateRosterDisplay, renderOverdueReport, handleDeleteClass, handleAddStudent, handleBulkImport, handleEditStudent, handleDeleteStudent, handleEditArticle, bulkUpdatePublicStatus, handleDeleteArticle, handleBulkDelete, generateAssignment, updateAssignedArticlesList, fetchTeacherAssignmentsPage, openEditModal, handleSaveEdit, handleStudentAiAnalysis, displaySubmissionReview, setupTeacherEventListeners } from './teacher.js';
@@ -1058,11 +1058,37 @@ export async function displayAssignment(assignment) {
     }
 
     if (isCompleted && !isPassed) {
-        formChildren.push(el('div', { class: 'mb-8 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg shadow-sm flex items-start' }, [
-            el('div', { class: 'ml-3' }, [
+        const aiHelpBtn = el('button', { id: 'ai-help-btn', type: 'button', class: 'mt-3 btn-primary py-2 px-4 text-sm font-bold flex items-center gap-2' }, [
+            '🆘 AI 求救'
+        ]);
+        const aiHelpFeedback = el('div', { id: 'ai-help-feedback', class: 'hidden mt-3 p-4 bg-teal-50 border border-teal-200 rounded-lg text-left prose-custom' });
+
+        aiHelpBtn.addEventListener('click', () => {
+            aiHelpBtn.disabled = true;
+            aiHelpBtn.innerHTML = '<div class="loader-sm"></div> AI 書僮思考中...';
+            callAiHelp(assignment.article, assignment.questions, submission.attempts ? submission.attempts[submission.attempts.length - 1].answers : submission.answers)
+                .then(feedback => {
+                    aiHelpFeedback.innerHTML = `<h3 class="font-bold text-teal-800 mb-2">📖 AI 書僮的引導</h3>` + markdownToHtml(feedback);
+                    aiHelpFeedback.classList.remove('hidden');
+                    aiHelpFeedback.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    aiHelpBtn.textContent = '✅ 已取得引導';
+                })
+                .catch(err => {
+                    console.error('[AI Help]', err);
+                    aiHelpFeedback.innerHTML = '<p class="text-red-600">AI 書僮暫時無法回應，請稍後再試。</p>';
+                    aiHelpFeedback.classList.remove('hidden');
+                    aiHelpBtn.disabled = false;
+                    aiHelpBtn.textContent = '🆘 AI 求救';
+                });
+        });
+
+        formChildren.push(el('div', { class: 'mb-8 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg shadow-sm' }, [
+            el('div', {}, [
                 el('h3', { class: 'font-bold text-red-800 text-lg mb-1', textContent: '【挑戰尚未成功！】' }),
                 el('p', { class: 'text-red-700 font-medium', textContent: `您的最高得分為 ${highestScore} 分，尚未達到 60 分過關門檻，因此標記為「未完成」。` }),
-                el('p', { class: 'text-red-600 text-sm mt-1', textContent: `請您重新閱讀文章資訊並再次挑戰，過關後才能查看深度解析喔！` })
+                el('p', { class: 'text-red-600 text-sm mt-1', textContent: `請您重新閱讀文章資訊並再次挑戰，過關後才能查看深度解析喔！` }),
+                aiHelpBtn,
+                aiHelpFeedback
             ])
         ]));
     }
