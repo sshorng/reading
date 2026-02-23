@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebas
 import { getAuth, signInAnonymously, onAuthStateChanged, signOut, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
 import { getFirestore, collection, doc, addDoc, getDocs, onSnapshot, query, where, writeBatch, setDoc, deleteDoc, updateDoc, arrayUnion, Timestamp, getDoc, orderBy, limit, startAfter, deleteField } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
 
-import { appState, dom, DEFAULT_GEMINI_MODEL, ARTICLES_PER_PAGE, TEACHER_PASSWORD_HASH, db, auth, app, appId, mermaidInitialized, setMermaidInitialized } from './state.js';
+import { appState, dom, DEFAULT_GEMINI_MODEL, ARTICLES_PER_PAGE, TEACHER_PASSWORD_HASH, db, auth, app, appId, mermaidInitialized, setMermaidInitialized, mermaidLoadPromise, setMermaidLoadPromise } from './state.js';
 import { el, updateElement, escapeHtml, normalizeClassName, generateDefaultPassword, markdownToHtml, formatSubmissionTime, formatTime, getLocalDateString, hashString } from './utils.js';
 import { loadStudentSubmissions, loadSubmissionsByClass, loadSubmissionsByAssignment, getAssignments } from './api.js';
 
@@ -1179,45 +1179,94 @@ export async function displayAssignment(assignment) {
     }
 }
 
+/**
+ * Dynamically loads Mermaid library on demand.
+ * Uses a shared promise to avoid duplicate loading.
+ * Falls back gracefully if loading fails (e.g. on older devices).
+ */
+function loadMermaidLibrary() {
+    if (window.mermaid) return Promise.resolve(true);
+    if (mermaidLoadPromise) return mermaidLoadPromise;
+
+    const promise = new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+        script.onload = () => {
+            console.log('[Mermaid] Library loaded successfully.');
+            resolve(true);
+        };
+        script.onerror = () => {
+            console.warn('[Mermaid] Failed to load library. Diagrams will show as text.');
+            resolve(false);
+        };
+        document.head.appendChild(script);
+    });
+    setMermaidLoadPromise(promise);
+    return promise;
+}
+
+/**
+ * Shows a graceful fallback for Mermaid diagrams that cannot be rendered.
+ * Displays the raw syntax in a styled code block instead of a red error.
+ */
+function showMermaidFallback(element, reason) {
+    if (element.getAttribute('data-processed') === 'true') return;
+    const rawText = element.textContent || element.innerText || '';
+    element.innerHTML = `<div class="my-4 rounded-lg border-2 border-slate-200 overflow-hidden">
+        <div class="bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-500 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            ${reason || '圖表 (您的裝置不支援即時渲染)'}
+        </div>
+        <pre class="p-4 text-sm text-slate-700 bg-white overflow-x-auto whitespace-pre-wrap" style="margin:0;">${rawText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+    </div>`;
+    element.classList.remove('mermaid');
+    element.setAttribute('data-processed', 'true');
+}
+
 export async function renderAllMermaidDiagrams(container) {
+    const mermaidElements = container.querySelectorAll('.mermaid');
+    if (mermaidElements.length === 0) return;
+
+    // Step 1: Try to load the library
+    const loaded = await loadMermaidLibrary();
+    if (!loaded || !window.mermaid) {
+        // Library failed to load — show fallback for all diagrams
+        mermaidElements.forEach(el => showMermaidFallback(el, '圖表載入庫失敗，以文字顯示'));
+        return;
+    }
+
     try {
-        // Ensure Mermaid is initialized only once with our theme
+        // Step 2: Initialize once
         if (!mermaidInitialized) {
             const elegantTheme = {
-                background: '#FFFFFF', // White background for the chart area
+                background: '#FFFFFF',
                 fontFamily: "'GenWanNeoSCjk', 'Noto Sans TC', sans-serif",
                 fontSize: '16px',
-                // Node Styles
-                primaryColor: '#F3F4F6', // Light gray background for nodes
-                primaryBorderColor: '#D1D5DB', // Slightly darker border
-                primaryTextColor: '#111827', // Dark text for contrast
-                // Edge (Line) Styles
-                lineColor: '#6B7280', // Medium gray for lines
-                nodeTextColor: '#111827', // Ensure text on nodes is dark
+                primaryColor: '#F3F4F6',
+                primaryBorderColor: '#D1D5DB',
+                primaryTextColor: '#111827',
+                lineColor: '#6B7280',
+                nodeTextColor: '#111827',
             };
             window.mermaid.initialize({
                 startOnLoad: false,
                 theme: 'base',
-                themeVariables: elegantTheme
+                themeVariables: elegantTheme,
+                // Increase security timeout for slower devices
+                securityLevel: 'loose',
             });
-            mermaidInitialized = true;
+            setMermaidInitialized(true);
         }
 
-        const mermaidElements = container.querySelectorAll('.mermaid');
-        if (mermaidElements.length > 0) {
-            // Use mermaid.run() which is the modern replacement for render
-            await window.mermaid.run({
-                nodes: mermaidElements,
-            });
-            console.log(`Successfully rendered ${mermaidElements.length} Mermaid diagram(s) in the specified container.`);
-        }
+        // Step 3: Render
+        await window.mermaid.run({ nodes: mermaidElements });
+        console.log(`[Mermaid] Successfully rendered ${mermaidElements.length} diagram(s).`);
     } catch (err) {
-        console.error("Error rendering Mermaid diagram:", err);
-        // Gracefully handle failure by showing an error message in place of the diagram
+        console.error('[Mermaid] Render error:', err);
+        // Fallback for any diagrams that failed to render
         container.querySelectorAll('.mermaid').forEach(el => {
-            // Check if it hasn't been processed to avoid replacing already rendered charts or valid error messages
-            if (!el.getAttribute('data-processed')) {
-                el.innerHTML = '<div class="p-4 bg-red-100 border-l-4 border-red-500 text-red-700"><p class="font-bold">圖表渲染失敗</p><p>圖表語法可能有誤。</p></div>';
+            if (el.getAttribute('data-processed') !== 'true') {
+                showMermaidFallback(el, '圖表語法可能有誤，以文字顯示');
             }
         });
     }

@@ -3,9 +3,14 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth
 import { getFirestore } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
 
 export let mermaidInitialized = false;
+export let mermaidLoadPromise = null;
 
 export function setMermaidInitialized(value) {
     mermaidInitialized = value;
+}
+
+export function setMermaidLoadPromise(value) {
+    mermaidLoadPromise = value;
 }
 
 export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
