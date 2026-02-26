@@ -1736,7 +1736,27 @@ export async function handleRegenerateQuestions(assignmentId, questionIndex = nu
     const isSingle = questionIndex !== null;
     showLoading(isSingle ? `正在重新生成第 ${parseInt(questionIndex) + 1} 題...` : '正在重新生成所有試題...');
     const pisaLevels = ["擷取與檢索", "統整與解釋", "統整與解釋", "省思與評鑑", "省思與評鑑"];
-    const prompt = `你是一位學養深厚的書院夫子，請根據以下文稿，為門下學子重新設計一份高品質的素養導向閱讀試煉。\n文稿："""${articleText}"""\n請遵循以下專業要求：\n1.  **試題設計**：${isSingle ? `請只設計 1 道單選題，且試題必須符合 PISA 閱讀素養的「${pisaLevels[questionIndex]}」層次。` : `請設計 5 道單選題，並依序符合 PISA 閱讀素養的三個層次：第1題(擷取與檢索)、第2-3題(統整與解釋)、第4-5題(省思與評鑑)。`}\n2. **產出格式**：每題都需要包含題幹（questionText）、4 個選項（options）、正確答案索引值（correctAnswerIndex, 0-3）、以及**詳盡的淺解**（explanation）。請嚴格按照指定的 JSON 格式輸出，你的回覆必須是一個 JSON 物件，其 key 為 "${isSingle ? 'question' : 'questions'}"。`;
+    const prompt = `你是一位學養深厚的書院夫子，請根據以下文稿，為門下學子重新設計高品質、素養導向的閱讀試煉題目。
+文稿："""${articleText}"""
+
+請遵循以下專業及格式要求：
+
+1. **試題設計**：
+    * ${isSingle ? `請只設計 1 道單選題，且試題必須符合 PISA 閱讀素養的「${pisaLevels[questionIndex]}」層次。` : `請設計 5 道單選題，並依序符合 PISA 閱讀素養的三個層次：第 1 題(擷取與檢索)、第 2-3 題(統整與解釋)、第 4-5 題(省思與評鑑)。`}
+    * **試題必須是素養導向的**，旨在考驗學子的歸納、分析、批判與應用能力。
+    * **試題必須是客觀題，答案能直接或間接從文本中找到，絕不可出現『你認為』、『你覺得』等開放式問句。**
+
+2. **選項設計要求（極重要）**：
+    * 錯誤選項必須反映學生常見的迷思概念（如：只看關鍵詞忽略上下文、混淆因果與相關、過度推論、斷章取義等）。
+    * 錯誤選項不可有明顯語法或邏輯漏洞，必須看似合理。
+    * 每題四個選項長度應相近，避免「最長選項是答案」的規律。
+    * 正確答案在四個選項中的位置必須隨機分布（correctAnswerIndex 為 0-3 之間）。
+
+3. **答題解析要求**：
+    * 每題的 **explanation** 必須包含：(1) 明確說明正確答案的原因並引用原文佐證 (2) 逐一解釋其他三個選項為何錯誤。
+
+4. **產出格式**：
+    * 請嚴格按照指定的 JSON 格式輸出，回覆必須是一個 JSON 物件，其 key 為 "${isSingle ? 'question' : 'questions'}"。`;
     const singleQuestionSchema = { type: "OBJECT", properties: { questionText: { type: "STRING" }, options: { type: "ARRAY", items: { type: "STRING" } }, correctAnswerIndex: { type: "NUMBER" }, explanation: { type: "STRING" } }, required: ["questionText", "options", "correctAnswerIndex", "explanation"] };
     const multipleQuestionsSchema = { type: "ARRAY", items: singleQuestionSchema };
     const finalSchema = { type: "OBJECT", properties: { [isSingle ? "question" : "questions"]: isSingle ? singleQuestionSchema : multipleQuestionsSchema }, required: [isSingle ? "question" : "questions"] };
