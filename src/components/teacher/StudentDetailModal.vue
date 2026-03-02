@@ -212,8 +212,11 @@ const createChart = () => {
     const diff = d.getDate() - day + (day === 0 ? -6 : 1)
     const monday = new Date(d.setDate(diff))
     
+    const sunday = new Date(monday)
+    sunday.setDate(monday.getDate() + 6)
+    
     const weekKey = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`
-    const label = `${monday.getMonth() + 1}/${monday.getDate()} 當週`
+    const label = `${monday.getMonth() + 1}/${monday.getDate()}-${sunday.getMonth() + 1}/${sunday.getDate()}`
     
     if (!weekData.has(weekKey)) {
       weekData.set(weekKey, { label, scores: [], count: 0, ts: monday.getTime() })
