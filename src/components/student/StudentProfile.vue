@@ -171,12 +171,22 @@ const calculateCompletion = async () => {
   const dueAssignments = all.filter(a => {
     if (a.isPublic !== true) return false
     if (!a.deadline) return false
-    const deadlineTime = a.deadline.toMillis ? a.deadline.toMillis() : new Date(a.deadline).getTime()
+    
+    let deadlineTime = 0
+    if (typeof a.deadline.toMillis === 'function') {
+      deadlineTime = a.deadline.toMillis()
+    } else if (a.deadline.seconds) {
+      deadlineTime = a.deadline.seconds * 1000
+    } else {
+      deadlineTime = new Date(a.deadline).getTime()
+    }
+    
     return deadlineTime < now
   })
 
-  if (!dueAssignments.length) {
-    completionRate.value = 0
+  // 如果這名學生目前沒有任何「已逾期」的文章，作業完成率預設算 100% 或是依已完成算
+  if (dueAssignments.length === 0) {
+    completionRate.value = 100
     return
   }
 

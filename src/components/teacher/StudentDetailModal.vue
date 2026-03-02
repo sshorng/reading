@@ -198,12 +198,21 @@ const calculateCompletion = async () => {
   const dueAssignments = all.filter(a => {
     if (a.isPublic !== true) return false
     if (!a.deadline) return false
-    const deadlineTime = a.deadline.toMillis ? a.deadline.toMillis() : new Date(a.deadline).getTime()
+    
+    let deadlineTime = 0
+    if (typeof a.deadline.toMillis === 'function') {
+      deadlineTime = a.deadline.toMillis()
+    } else if (a.deadline.seconds) {
+      deadlineTime = a.deadline.seconds * 1000
+    } else {
+      deadlineTime = new Date(a.deadline).getTime()
+    }
+    
     return deadlineTime < now
   })
 
-  if (!dueAssignments.length) {
-    completionRate.value = 0
+  if (dueAssignments.length === 0) {
+    completionRate.value = 100
     return
   }
 
