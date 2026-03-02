@@ -198,32 +198,28 @@ const createChart = () => {
   if (chartInstance) chartInstance.destroy()
   if (!chartCanvas.value || props.submissions.length === 0) return
 
-  // Create datasets grouped by week
-  const weekData = new Map()
+  // Create datasets grouped by date
+  const dateData = new Map()
   
   props.submissions.forEach(sub => {
     const ts = sub.lastSubmittedAt || sub.submittedAt || sub.updatedAt
     if (!ts) return
     const date = ts.toDate ? ts.toDate() : new Date(ts)
     
-    // Get week number of the year
-    const startOfYear = new Date(date.getFullYear(), 0, 1)
-    const week = Math.ceil((((date - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7)
+    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    const label = `${date.getMonth() + 1}/${date.getDate()}`
     
-    if (!weekData.has(week)) {
-      weekData.set(week, { labels: `第 ${week} 週`, scores: [], count: 0 })
+    if (!dateData.has(dateKey)) {
+      dateData.set(dateKey, { label, scores: [], count: 0, ts: date.setHours(0,0,0,0) })
     }
-    weekData.get(week).scores.push(getBestScore(sub))
-    weekData.get(week).count++
+    dateData.get(dateKey).scores.push(getBestScore(sub)) // getBestScore already returns first score here
+    dateData.get(dateKey).count++
   })
 
-  const sortedWeeks = Array.from(weekData.keys()).sort((a,b) => a - b)
-  const labels = sortedWeeks.map(w => weekData.get(w).labels)
-  const avgScores = sortedWeeks.map(w => {
-    const s = weekData.get(w).scores
-    return s.reduce((a,b) => a + b, 0) / s.length
-  })
-  const counts = sortedWeeks.map(w => weekData.get(w).count)
+  const sortedDates = Array.from(dateData.values()).sort((a,b) => a.ts - b.ts)
+  const labels = sortedDates.map(d => d.label)
+  const avgScores = sortedDates.map(d => d.scores.reduce((a,b) => a + b, 0) / d.scores.length)
+  const counts = sortedDates.map(d => d.count)
 
   const ctx = chartCanvas.value.getContext('2d')
   chartInstance = new Chart(ctx, {

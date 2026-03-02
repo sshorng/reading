@@ -320,20 +320,44 @@ onMounted(async () => {
   if (authStore.currentUser?.studentId) {
       await loadStudentSubmissions(authStore.currentUser.studentId)
 
-      // 每日首次進入 Dashboard 時計算連續完成天數
+      // 每日首次進入 Dashboard 時計算連續完成天數 + 連續登入天數
       try {
         const user = authStore.currentUser
+        const allUpdates = {}
+
+        // 連續完成天數
         const streakUpdates = await calculateCompletionStreak(user.studentId, user)
-        if (Object.keys(streakUpdates).length > 0) {
+        Object.assign(allUpdates, streakUpdates)
+
+        // 連續登入天數
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const lastLogin = user.lastLoginDate
+        const lastLoginDate = lastLogin?.toDate ? lastLogin.toDate() : (lastLogin ? new Date(lastLogin) : null)
+
+        if (lastLoginDate) {
+          lastLoginDate.setHours(0, 0, 0, 0)
+          const diffDays = Math.round((today - lastLoginDate) / 86400000)
+          if (diffDays === 1) {
+            allUpdates.loginStreak = (user.loginStreak || 0) + 1
+          } else if (diffDays > 1) {
+            allUpdates.loginStreak = 1
+          }
+          // diffDays === 0 → 同天，不更新 loginStreak
+        } else {
+          allUpdates.loginStreak = 1
+        }
+        allUpdates.lastLoginDate = new Date()
+
+        if (Object.keys(allUpdates).length > 0) {
           const { updateDoc, doc } = await import('firebase/firestore')
           const { db } = await import('../../firebase/init')
-          await updateDoc(doc(db, `classes/${user.classId}/students`, user.studentId), streakUpdates)
-          // 同步更新 authStore 中的使用者資料
-          Object.assign(authStore.currentUser, streakUpdates)
-          console.log('[Dashboard] Streak updated:', streakUpdates)
+          await updateDoc(doc(db, `classes/${user.classId}/students`, user.studentId), allUpdates)
+          Object.assign(authStore.currentUser, allUpdates)
+          console.log('[Dashboard] Updates:', allUpdates)
         }
       } catch (err) {
-        console.error('[Dashboard] Streak check failed:', err)
+        console.error('[Dashboard] Streak/login check failed:', err)
       }
   }
   // Fetch assignments on mount
