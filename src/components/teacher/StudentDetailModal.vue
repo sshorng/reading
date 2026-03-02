@@ -159,6 +159,7 @@
 <script setup>
 import { computed, ref, onMounted, watch, nextTick } from 'vue'
 import Chart from 'chart.js/auto'
+import { getAssignments, getAssignmentById } from '../../services/api'
 
 const props = defineProps({
   isVisible: Boolean,

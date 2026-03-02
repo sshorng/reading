@@ -109,24 +109,40 @@ const trendCanvas = ref(null)
 let distInstance = null
 let trendInstance = null
 
-const publicAssignmentsCount = computed(() => assignments.value.filter(a => a.isPublic).length)
+const dueAssignmentsIds = computed(() => {
+    const now = Date.now()
+    return new Set(assignments.value.filter(a => {
+        if (!a.isPublic) return false
+        if (!a.deadline) return false
+        let deadlineTime = 0
+        if (typeof a.deadline.toMillis === 'function') {
+            deadlineTime = a.deadline.toMillis()
+        } else if (a.deadline.seconds) {
+            deadlineTime = a.deadline.seconds * 1000
+        } else {
+            deadlineTime = new Date(a.deadline).getTime()
+        }
+        return deadlineTime < now
+    }).map(a => a.id))
+})
 
 const completionRate = computed(() => {
-    if (students.value.length === 0 || publicAssignmentsCount.value === 0) return 0
-    const totalPotential = students.value.length * publicAssignmentsCount.value
-    // Count unique (studentId, assignmentId) where best score >= 60
+    if (students.value.length === 0) return 0
+    if (dueAssignmentsIds.value.size === 0) return 100
+    const totalPotential = students.value.length * dueAssignmentsIds.value.size
     const passedCount = submissions.value.filter(s => {
+        if (!dueAssignmentsIds.value.has(s.assignmentId)) return false
         const best = s.attempts?.length ? Math.max(...s.attempts.map(a => a.score)) : (s.score || 0)
         return best >= 60
     }).length
-    return (passedCount / totalPotential) * 100
+    return Math.min(100, (passedCount / totalPotential) * 100)
 })
 
 const atRiskCount = computed(() => {
     if (students.value.length === 0) return 0
-    // Students with average score < 60 across their submissions
     const studentStats = new Map()
     submissions.value.forEach(s => {
+        if (!dueAssignmentsIds.value.has(s.assignmentId)) return
         if (!studentStats.has(s.studentId)) studentStats.set(s.studentId, [])
         const best = s.attempts?.length ? Math.max(...s.attempts.map(a => a.score)) : (s.score || 0)
         studentStats.get(s.studentId).push(best)
@@ -138,8 +154,7 @@ const atRiskCount = computed(() => {
         if (scores.length > 0) {
             const avg = scores.reduce((a,b) => a+b, 0) / scores.length
             if (avg < 60) count++
-        } else if (publicAssignmentsCount.value > 0) {
-            // No submissions at all?
+        } else if (dueAssignmentsIds.value.size > 0) {
             count++
         }
     })
