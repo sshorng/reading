@@ -43,7 +43,7 @@
             </div>
           </div>
           <div :class="getScoreClass(sub)" class="font-black text-2xl flex flex-col items-end leading-tight">
-            {{ getBestScore(sub) }}
+            {{ getFirstScore(sub) }}
             <span class="text-[9px] font-bold uppercase tracking-tighter opacity-50">Score</span>
           </div>
         </div>
@@ -149,22 +149,22 @@ const selectedSubDetail = ref(null)
 const detailAssignment = ref(null)
 const loadingDetail = ref(false)
 
-const getBestScore = (sub) => {
+const getFirstScore = (sub) => {
   if (sub.attempts && sub.attempts.length > 0) {
-    return Math.max(...sub.attempts.map(a => a.score))
+    return sub.attempts[0].score
   }
   return sub.score || 0
 }
 
 const avgScore = computed(() => {
   if (!props.submissions.length) return 0
-  const total = props.submissions.reduce((sum, s) => sum + getBestScore(s), 0)
+  const total = props.submissions.reduce((sum, s) => sum + getFirstScore(s), 0)
   return total / props.submissions.length
 })
 
 const maxScore = computed(() => {
   if (!props.submissions.length) return 0
-  return Math.max(...props.submissions.map(s => getBestScore(s)))
+  return Math.max(...props.submissions.map(s => getFirstScore(s)))
 })
 
 const createChart = () => {
@@ -182,7 +182,7 @@ const createChart = () => {
     if (!weekData.has(week)) {
       weekData.set(week, { labels: `第 ${week} 週`, scores: [], count: 0 })
     }
-    weekData.get(week).scores.push(getBestScore(sub))
+    weekData.get(week).scores.push(getFirstScore(sub))
     weekData.get(week).count++
   })
 
@@ -268,7 +268,7 @@ const formatDate = (val) => {
 }
 
 const getScoreClass = (sub) => {
-  const score = getBestScore(sub)
+  const score = getFirstScore(sub)
   return score >= 60 ? 'text-teal-600' : 'text-rose-600'
 }
 

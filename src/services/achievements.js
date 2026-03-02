@@ -62,7 +62,10 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
                 break
             case 'average_score':
                 if (subs && subs.length > 0) {
-                    const totalScore = subs.reduce((sum, s) => sum + (s.score || 0), 0)
+                    const totalScore = subs.reduce((sum, s) => {
+                        const first = (s.attempts && s.attempts.length > 0) ? s.attempts[0].score : (s.score || 0)
+                        return sum + first
+                    }, 0)
                     if ((totalScore / subs.length) >= value) isMet = true
                 }
                 break
@@ -92,8 +95,9 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
                     const d = s.submittedAt?.toDate ? s.submittedAt.toDate() : new Date(s.submittedAt)
                     return d >= startOfPrevWeek && d <= endOfPrevWeek
                 })
-                const lastWeekTotal = lastWeekSubs.reduce((sum, s) => sum + (s.score || 0), 0)
-                const prevWeekTotal = prevWeekSubs.reduce((sum, s) => sum + (s.score || 0), 0)
+                const getFirst = (s) => (s.attempts && s.attempts.length > 0) ? s.attempts[0].score : (s.score || 0)
+                const lastWeekTotal = lastWeekSubs.reduce((sum, s) => sum + getFirst(s), 0)
+                const prevWeekTotal = prevWeekSubs.reduce((sum, s) => sum + getFirst(s), 0)
                 if (lastWeekTotal > 0 && lastWeekTotal > prevWeekTotal) isMet = true
                 break
             }

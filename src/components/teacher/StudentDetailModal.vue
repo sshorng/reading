@@ -59,7 +59,7 @@
                   </div>
                 </div>
                 <div :class="getScoreClass(sub)" class="font-black text-2xl flex flex-col items-end">
-                  {{ sub.attempts && sub.attempts.length > 0 ? Math.max(...sub.attempts.map(a => a.score)) : sub.score }}
+                  {{ sub.attempts && sub.attempts.length > 0 ? sub.attempts[0].score : sub.score }}
                   <span class="text-[9px] font-bold uppercase tracking-tighter opacity-50">Score</span>
                 </div>
               </div>
@@ -178,7 +178,7 @@ const loadingDetail = ref(false)
 
 const getBestScore = (sub) => {
   if (sub.attempts && sub.attempts.length > 0) {
-    return Math.max(...sub.attempts.map(a => a.score))
+    return sub.attempts[0].score
   }
   return sub.score || 0
 }
