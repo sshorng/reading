@@ -1,0 +1,393 @@
+<template>
+  <div v-if="isVisible" class="fixed inset-0 z-[200] overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen p-4">
+      <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" @click="$emit('close')"></div>
+      <div class="relative z-10 bg-white rounded-3xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl p-6 border border-gray-100 animate-slide-up">
+        <div class="flex justify-between items-center mb-6 pb-4 border-b">
+          <h3 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <span class="w-1.5 h-6 bg-red-800 rounded-full"></span>
+            學子挑戰卷軸：{{ student?.name }}
+          </h3>
+          <button @click="$emit('close')" class="text-gray-400 hover:text-red-800 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        
+        <div v-if="loading" class="flex flex-col items-center justify-center py-20 gap-4">
+          <div class="loader-sm w-10 h-10 border-4 border-red-800/20 border-t-red-800 rounded-full animate-spin"></div>
+          <p class="text-slate-400 font-medium italic">正在調閱卷宗...</p>
+        </div>
+
+        <div v-else class="flex-grow overflow-y-auto custom-scrollbar">
+          <!-- Learning Profile Stats -->
+          <div v-if="submissions.length > 0" class="mb-8 bg-slate-50 p-6 rounded-3xl border border-slate-100 shadow-inner">
+             <div class="grid grid-cols-3 gap-4 mb-6">
+                <div class="text-center p-3 bg-white rounded-2xl shadow-sm border border-slate-100">
+                   <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">平均得分</div>
+                   <div class="text-2xl font-black text-emerald-600">{{ avgScore.toFixed(1) }}</div>
+                </div>
+                <div class="text-center p-3 bg-white rounded-2xl shadow-sm border border-slate-100">
+                   <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">完成篇數</div>
+                   <div class="text-2xl font-black text-blue-600">{{ submissions.length }}</div>
+                </div>
+                <div class="text-center p-3 bg-white rounded-2xl shadow-sm border border-slate-100">
+                   <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">最高得分</div>
+                   <div class="text-2xl font-black text-red-800">{{ maxScore }}</div>
+                </div>
+             </div>
+
+             <!-- Chart Container -->
+             <div class="relative h-64 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                <canvas ref="chartCanvas"></canvas>
+             </div>
+          </div>
+
+          <div v-if="submissions.length > 0" class="grid grid-cols-1 gap-4 pr-1">
+            <div class="flex items-center gap-3 mb-2 ml-2">
+                <span class="w-1.5 h-4 bg-teal-500 rounded-full"></span>
+                <span class="text-sm font-bold text-slate-600">詳細作答記錄</span>
+            </div>
+            <div v-for="sub in submissions" :key="sub.id" 
+                 @click="viewSubmissionDetail(sub)"
+                 class="p-5 bg-white rounded-2xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors group">
+              <div class="flex justify-between items-start mb-3">
+                <div class="space-y-1">
+                  <div class="font-black text-slate-800 group-hover:text-red-800 transition-colors">{{ sub.assignmentTitle || '無題篇章' }}</div>
+                  <div class="text-[10px] text-slate-400 flex items-center gap-2">
+                    <span class="bg-white px-2 py-0.5 rounded border border-slate-100">挑戰：{{ sub.attempts?.length || 1 }} 次</span>
+                    <span v-if="sub.updatedAt" class="opacity-70">最近繳卷：{{ formatDate(sub.updatedAt) }}</span>
+                  </div>
+                </div>
+                <div :class="getScoreClass(sub)" class="font-black text-2xl flex flex-col items-end">
+                  {{ sub.attempts && sub.attempts.length > 0 ? Math.max(...sub.attempts.map(a => a.score)) : sub.score }}
+                  <span class="text-[9px] font-bold uppercase tracking-tighter opacity-50">Score</span>
+                </div>
+              </div>
+              <div v-if="sub.attempts && sub.attempts.length > 0" class="flex gap-1.5 flex-wrap">
+                <span v-for="(attempt, idx) in sub.attempts" :key="idx" 
+                      class="px-2 py-1 bg-white border border-slate-100 rounded-lg text-[9px] font-bold text-slate-500 shadow-sm">
+                  第{{ idx+1 }}次：{{ attempt.score }}%
+                </span>
+              </div>
+            </div>
+          </div>
+          <div v-else class="text-center py-20 text-slate-300">
+            <svg class="w-16 h-16 mx-auto mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+            <p class="font-medium">此生尚未在任何篇章留下墨寶。</p>
+          </div>
+
+          <!-- Submission Detail Overlay -->
+          <transition name="fade-slide">
+            <div v-if="selectedSubDetail" class="absolute inset-0 z-[210] overflow-y-auto bg-white flex flex-col animate-fade-in rounded-3xl">
+                <div class="bg-slate-50 border-b px-8 py-4 flex justify-between items-center shrink-0">
+                    <h3 class="text-lg font-black text-gray-800 flex items-center gap-2">
+                        <span class="w-1.5 h-6 bg-amber-600 rounded-full"></span>
+                        答題詳情：{{ selectedSubDetail.assignmentTitle }}
+                    </h3>
+                    <button @click="selectedSubDetail = null" class="btn-secondary py-1.5 px-6 text-xs font-bold rounded-xl shadow-sm">返回歷程</button>
+                </div>
+                
+                <div class="flex-grow p-8 custom-scrollbar space-y-6">
+                    <div v-if="loadingDetail" class="flex flex-col items-center justify-center py-20 gap-4">
+                        <div class="loader-sm w-10 h-10 border-4 border-amber-800/20 border-t-amber-600 rounded-full animate-spin"></div>
+                        <p class="text-amber-600 font-medium italic">正在查閱卷宗內容...</p>
+                    </div>
+                    
+                    <template v-else-if="detailAssignment">
+                        <!-- Latest Attempt Quiz Detail -->
+                        <div class="space-y-4">
+                            <h4 class="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] flex items-center gap-3">
+                                <span class="h-px bg-slate-100 flex-grow"></span>
+                                末次挑戰答題詳情
+                                <span class="h-px bg-slate-100 flex-grow"></span>
+                            </h4>
+                            
+                            <div v-for="(q, i) in detailAssignment.questions" :key="i" 
+                                :class="[
+                                    'p-6 rounded-2xl border relative overflow-hidden',
+                                    (selectedSubDetail.attempts?.length ? selectedSubDetail.attempts[selectedSubDetail.attempts.length-1].answers[i] : selectedSubDetail.answers[i]) === q.correctAnswerIndex 
+                                    ? 'bg-teal-50 border-teal-200' : 'bg-rose-50 border-rose-200'
+                                ]">
+                                <div class="flex justify-between items-start mb-4 relative z-10">
+                                    <div class="flex items-start gap-4">
+                                        <span class="shrink-0 w-8 h-8 rounded-lg bg-white/80 shadow-sm border border-slate-100 flex items-center justify-center font-black text-slate-400 text-sm">{{ i + 1 }}</span>
+                                        <p class="font-bold text-slate-800 text-base leading-relaxed pt-1">{{ q.questionText }}</p>
+                                    </div>
+                                    <span v-if="(selectedSubDetail.attempts?.length ? selectedSubDetail.attempts[selectedSubDetail.attempts.length-1].answers[i] : selectedSubDetail.answers[i]) === q.correctAnswerIndex" 
+                                            class="text-teal-600 font-black text-[10px] bg-white/90 px-3 py-1 rounded-full border border-teal-100 shadow-sm shrink-0 ml-4 uppercase tracking-widest">正解</span>
+                                    <span v-else class="text-rose-600 font-black text-[10px] bg-white/90 px-3 py-1 rounded-full border border-rose-100 shadow-sm shrink-0 ml-4 uppercase tracking-widest">誤選</span>
+                                </div>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 relative z-10">
+                                    <div class="text-sm bg-white/80 p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col gap-1">
+                                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">學子選擇</span>
+                                        <span :class="['font-black text-base', (selectedSubDetail.attempts?.length ? selectedSubDetail.attempts[selectedSubDetail.attempts.length-1].answers[i] : selectedSubDetail.answers[i]) === q.correctAnswerIndex ? 'text-teal-700' : 'text-rose-700']">
+                                            {{ (selectedSubDetail.attempts?.length ? selectedSubDetail.attempts[selectedSubDetail.attempts.length-1].answers[i] : selectedSubDetail.answers[i]) !== null ? q.options[(selectedSubDetail.attempts?.length ? selectedSubDetail.attempts[selectedSubDetail.attempts.length-1].answers[i] : selectedSubDetail.answers[i])] : '未作答' }}
+                                        </span>
+                                    </div>
+                                    <div class="text-sm bg-white/80 p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col gap-1">
+                                        <span class="text-[10px] font-black text-emerald-600/40 uppercase tracking-widest">標準答案</span>
+                                        <span class="text-slate-800 font-black text-base">{{ q.options[q.correctAnswerIndex] }}</span>
+                                    </div>
+                                </div>
+
+                                <div class="pt-5 border-t border-slate-200/50 flex gap-4 relative z-10">
+                                    <div class="shrink-0 flex flex-col items-center">
+                                        <div class="w-8 h-8 rounded-full bg-red-800/10 flex items-center justify-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-800" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                        </div>
+                                        <span class="text-[9px] font-black text-red-800/40 uppercase tracking-[0.2em] mt-2">淺解</span>
+                                    </div>
+                                    <p class="text-sm text-slate-500 leading-relaxed italic pt-1">{{ q.explanation || '在此夫子暫無額外交代。' }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+          </transition>
+        </div>
+        
+        <div class="mt-6 pt-4 border-t flex justify-end">
+          <button @click="$emit('close')" class="btn-secondary px-10 py-2.5 font-bold shadow-sm">閱畢關閉</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed, ref, onMounted, watch, nextTick } from 'vue'
+import Chart from 'chart.js/auto'
+
+const props = defineProps({
+  isVisible: Boolean,
+  student: Object,
+  submissions: { type: Array, default: () => [] },
+  loading: Boolean
+})
+
+const emit = defineEmits(['close'])
+
+const chartCanvas = ref(null)
+let chartInstance = null
+
+const selectedSubDetail = ref(null)
+const detailAssignment = ref(null)
+const loadingDetail = ref(false)
+
+const getBestScore = (sub) => {
+  if (sub.attempts && sub.attempts.length > 0) {
+    return Math.max(...sub.attempts.map(a => a.score))
+  }
+  return sub.score || 0
+}
+
+const avgScore = computed(() => {
+  if (!props.submissions.length) return 0
+  const total = props.submissions.reduce((sum, s) => sum + getBestScore(s), 0)
+  return total / props.submissions.length
+})
+
+const maxScore = computed(() => {
+  if (!props.submissions.length) return 0
+  return Math.max(...props.submissions.map(s => getBestScore(s)))
+})
+
+const createChart = () => {
+  if (chartInstance) chartInstance.destroy()
+  if (!chartCanvas.value || props.submissions.length === 0) return
+
+  // Create datasets grouped by week
+  const weekData = new Map()
+  
+  props.submissions.forEach(sub => {
+    const ts = sub.lastSubmittedAt || sub.submittedAt || sub.updatedAt
+    if (!ts) return
+    const date = ts.toDate ? ts.toDate() : new Date(ts)
+    
+    // Get week number of the year
+    const startOfYear = new Date(date.getFullYear(), 0, 1)
+    const week = Math.ceil((((date - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7)
+    
+    if (!weekData.has(week)) {
+      weekData.set(week, { labels: `第 ${week} 週`, scores: [], count: 0 })
+    }
+    weekData.get(week).scores.push(getBestScore(sub))
+    weekData.get(week).count++
+  })
+
+  const sortedWeeks = Array.from(weekData.keys()).sort((a,b) => a - b)
+  const labels = sortedWeeks.map(w => weekData.get(w).labels)
+  const avgScores = sortedWeeks.map(w => {
+    const s = weekData.get(w).scores
+    return s.reduce((a,b) => a + b, 0) / s.length
+  })
+  const counts = sortedWeeks.map(w => weekData.get(w).count)
+
+  const ctx = chartCanvas.value.getContext('2d')
+  chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: '完成篇數',
+          data: counts,
+          backgroundColor: 'rgba(56, 178, 172, 0.2)',
+          borderColor: 'rgba(56, 178, 172, 1)',
+          borderWidth: 2,
+          yAxisID: 'yCount',
+          borderRadius: 8,
+          order: 2
+        },
+        {
+          label: '平均分數',
+          data: avgScores,
+          type: 'line',
+          backgroundColor: 'rgba(140, 56, 77, 0.1)',
+          borderColor: 'rgba(140, 56, 77, 1)',
+          borderWidth: 3,
+          tension: 0.4,
+          pointBackgroundColor: '#8C384D',
+          fill: true,
+          yAxisID: 'yScore',
+          order: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        yScore: {
+          type: 'linear',
+          position: 'left',
+          beginAtZero: true,
+          max: 100,
+          grid: { display: false },
+          ticks: { font: { size: 10, weight: 'bold' } }
+        },
+        yCount: {
+          type: 'linear',
+          position: 'right',
+          beginAtZero: true,
+          ticks: { stepSize: 1, font: { size: 10, weight: 'bold' } },
+          grid: { color: 'rgba(0,0,0,0.03)' }
+        },
+        x: {
+          ticks: { font: { size: 11, family: "'GenWanNeoSCjk', 'Noto Sans TC'" } },
+          grid: { display: false }
+        }
+      }
+    }
+  })
+}
+
+watch([() => props.isVisible, () => props.submissions, () => props.loading], ([vis, subs, load]) => {
+  if (vis && !load && subs.length > 0) {
+    nextTick(() => createChart())
+  }
+})
+
+const formatDate = (val) => {
+  if (!val) return ''
+  const d = val.toDate ? val.toDate() : new Date(val)
+  return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`
+}
+
+const getScoreClass = (sub) => {
+  const score = getBestScore(sub)
+  return score >= 60 ? 'text-teal-600' : 'text-rose-600'
+}
+
+const viewSubmissionDetail = async (sub) => {
+    selectedSubDetail.value = sub
+    loadingDetail.value = true
+    detailAssignment.value = null
+    try {
+        const { getAssignmentById } = await import('../../services/api')
+        const assignment = await getAssignmentById(sub.assignmentId)
+        detailAssignment.value = assignment
+    } catch (e) {
+        console.error("Failed to load assignment detail", e)
+    } finally {
+        loadingDetail.value = false
+    }
+}
+</script>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+
+/* Mermaid Styling */
+:deep(.mermaid svg) {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1rem auto;
+    overflow: visible !important;
+}
+
+:deep(.mermaid) {
+    overflow: visible !important;
+}
+
+:deep(.mermaid svg text) {
+    font-family: 'GenWanNeoSCjk', 'Noto Sans TC', sans-serif !important;
+    fill: #374151 !important;
+}
+
+/* --- Mindmap Hierarchical Styling --- */
+:deep(.mermaid .mindmap-node) {
+    rx: 8;
+    ry: 8;
+    stroke-width: 2px !important;
+}
+
+:deep(.mermaid .mindmap-node--level-0) {
+    fill: #8C384D !important; /* Root: Rouge Red */
+    stroke: #6E2C3C !important;
+}
+:deep(.mermaid .mindmap-node--level-0 text),
+:deep(.mermaid .mindmap-node--level-0 .node-label) {
+    fill: #ffffff !important;
+    color: #ffffff !important;
+    font-weight: 900 !important;
+}
+
+:deep(.mermaid .mindmap-node--level-1) {
+    fill: #576c73 !important; /* Level 1: Scholar Gray */
+    stroke: #435459 !important;
+}
+:deep(.mermaid .mindmap-node--level-1 text),
+:deep(.mermaid .mindmap-node--level-1 .node-label) {
+    fill: #ffffff !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+:deep(.mermaid .mindmap-node--level-2),
+:deep(.mermaid .mindmap-node--level-3),
+:deep(.mermaid .mindmap-node--level-4) {
+    fill: #fdfbf6 !important; /* Leaves: Rice Paper White */
+    stroke: #d1d5db !important;
+    stroke-dasharray: 2,2;
+}
+:deep(.mermaid .mindmap-node--level-2 text),
+:deep(.mermaid .mindmap-node--level-2 .node-label) {
+    fill: #374151 !important;
+    color: #374151 !important;
+}
+
+:deep(.mermaid .mindmap-edge) {
+    stroke: #cbd5e1 !important;
+    stroke-width: 2px !important;
+}
+</style>
