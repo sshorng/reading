@@ -198,28 +198,34 @@ const createChart = () => {
   if (chartInstance) chartInstance.destroy()
   if (!chartCanvas.value || props.submissions.length === 0) return
 
-  // Create datasets grouped by date
-  const dateData = new Map()
+  // Create datasets grouped by week
+  const weekData = new Map()
   
   props.submissions.forEach(sub => {
     const ts = sub.lastSubmittedAt || sub.submittedAt || sub.updatedAt
     if (!ts) return
     const date = ts.toDate ? ts.toDate() : new Date(ts)
     
-    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-    const label = `${date.getMonth() + 1}/${date.getDate()}`
+    // 找出該週的星期一
+    const d = new Date(date)
+    const day = d.getDay()
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+    const monday = new Date(d.setDate(diff))
     
-    if (!dateData.has(dateKey)) {
-      dateData.set(dateKey, { label, scores: [], count: 0, ts: date.setHours(0,0,0,0) })
+    const weekKey = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`
+    const label = `${monday.getMonth() + 1}/${monday.getDate()} 當週`
+    
+    if (!weekData.has(weekKey)) {
+      weekData.set(weekKey, { label, scores: [], count: 0, ts: monday.getTime() })
     }
-    dateData.get(dateKey).scores.push(getBestScore(sub)) // getBestScore already returns first score here
-    dateData.get(dateKey).count++
+    weekData.get(weekKey).scores.push(getBestScore(sub)) // getBestScore already returns first score here
+    weekData.get(weekKey).count++
   })
 
-  const sortedDates = Array.from(dateData.values()).sort((a,b) => a.ts - b.ts)
-  const labels = sortedDates.map(d => d.label)
-  const avgScores = sortedDates.map(d => d.scores.reduce((a,b) => a + b, 0) / d.scores.length)
-  const counts = sortedDates.map(d => d.count)
+  const sortedWeeks = Array.from(weekData.values()).sort((a,b) => a.ts - b.ts)
+  const labels = sortedWeeks.map(w => w.label)
+  const avgScores = sortedWeeks.map(w => w.scores.reduce((a,b) => a + b, 0) / w.scores.length)
+  const counts = sortedWeeks.map(w => w.count)
 
   const ctx = chartCanvas.value.getContext('2d')
   chartInstance = new Chart(ctx, {
