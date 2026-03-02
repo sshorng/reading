@@ -132,15 +132,15 @@
                   </div>
                 </td>
                 <td class="px-3 py-4">
-                   <div class="flex gap-1 flex-wrap">
-                     <span class="px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 text-[9px] font-black">{{ article.tags?.format || '純文' }}</span>
-                     <span class="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 text-[9px] font-black">{{ article.tags?.contentType || '說明' }}</span>
-                     <span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 text-[9px] font-black">{{ article.tags?.difficulty || '普通' }}</span>
+                   <div class="flex gap-1.5 flex-wrap">
+                     <span class="px-2 py-0.5 rounded bg-orange-50 text-orange-700 text-xs font-bold">{{ article.tags?.format || '純文' }}</span>
+                     <span class="px-2 py-0.5 rounded bg-rose-50 text-rose-700 text-xs font-bold">{{ article.tags?.contentType || '說明' }}</span>
+                     <span class="px-2 py-0.5 rounded bg-amber-50 text-amber-700 text-xs font-bold">{{ article.tags?.difficulty || '普通' }}</span>
                    </div>
                 </td>
                 <td class="px-3 py-4">
                   <span :class="article.isPublic ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-400 border-slate-200'" 
-                        class="px-2.5 py-1 text-[10px] font-black rounded-lg border inline-flex items-center gap-1.5 whitespace-nowrap">
+                        class="px-2.5 py-1 text-xs font-bold rounded-lg border inline-flex items-center gap-1.5 whitespace-nowrap">
                     <span :class="article.isPublic ? 'bg-emerald-500' : 'bg-slate-300'" class="w-1.5 h-1.5 rounded-full"></span>
                     {{ article.isPublic ? '公開' : '私密' }}
                   </span>
