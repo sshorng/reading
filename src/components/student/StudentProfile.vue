@@ -165,8 +165,17 @@ const avgScore = computed(() => {
 const completionRate = ref(0)
 const calculateCompletion = async () => {
   const all = await getAssignments()
-  const publicAssignments = all.filter(a => a.isPublic === true)
-  if (!publicAssignments.length) {
+  const now = Date.now()
+  
+  // 只計算公開且已經到期的文章
+  const dueAssignments = all.filter(a => {
+    if (a.isPublic !== true) return false
+    if (!a.deadline) return false
+    const deadlineTime = a.deadline.toMillis ? a.deadline.toMillis() : new Date(a.deadline).getTime()
+    return deadlineTime < now
+  })
+
+  if (!dueAssignments.length) {
     completionRate.value = 0
     return
   }
@@ -176,12 +185,12 @@ const calculateCompletion = async () => {
     return high >= 60
   }).map(s => s.assignmentId))
 
-  let passedPublicCount = 0
-  publicAssignments.forEach(a => {
-    if (passedIds.has(a.id)) passedPublicCount++
+  let passedDueCount = 0
+  dueAssignments.forEach(a => {
+    if (passedIds.has(a.id)) passedDueCount++
   })
 
-  completionRate.value = Math.min(100, Math.round((passedPublicCount / publicAssignments.length) * 100))
+  completionRate.value = Math.min(100, Math.round((passedDueCount / dueAssignments.length) * 100))
 }
 
 const createChart = () => {
