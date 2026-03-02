@@ -63,7 +63,7 @@ import { useAuthStore } from '../stores/auth'
 import { fetchClasses, fetchStudentsByClass, loadStudentSubmissions } from '../services/api'
 import { calculateCompletionStreak } from '../services/achievements'
 import { hashString, generateDefaultPassword } from '../utils/helpers'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase/init'
 
 const router = useRouter()
@@ -156,15 +156,42 @@ const handleStudentLogin = async () => {
 
     await loadStudentSubmissions(selectedStudent.value)
 
-    // 連續完成天數計算
+    // 連續完成天數計算 + 連續登入天數計算
     try {
+      const studentRef = doc(db, `classes/${selectedClass.value}/students`, selectedStudent.value)
+      const updates = {}
+
+      // 連續完成天數
       const streakUpdates = await calculateCompletionStreak(selectedStudent.value, studentInfo)
-      if (Object.keys(streakUpdates).length > 0) {
-        await updateDoc(doc(db, `classes/${selectedClass.value}/students`, selectedStudent.value), streakUpdates)
-        console.log('[Login] Streak updated:', streakUpdates)
+      Object.assign(updates, streakUpdates)
+
+      // 連續登入天數
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const lastLogin = studentInfo.lastLoginDate
+      const lastLoginDate = lastLogin?.toDate ? lastLogin.toDate() : (lastLogin ? new Date(lastLogin) : null)
+
+      if (lastLoginDate) {
+        lastLoginDate.setHours(0, 0, 0, 0)
+        const diffDays = Math.round((today - lastLoginDate) / 86400000)
+        if (diffDays === 1) {
+          updates.loginStreak = (studentInfo.loginStreak || 0) + 1
+        } else if (diffDays > 1) {
+          updates.loginStreak = 1
+        }
+        // diffDays === 0 → 同天再次登入，不更新
+      } else {
+        updates.loginStreak = 1
+      }
+      updates.lastLoginDate = new Date()
+
+      if (Object.keys(updates).length > 0) {
+        await updateDoc(studentRef, updates)
+        Object.assign(authStore.currentUser, updates)
+        console.log('[Login] Updates:', updates)
       }
     } catch (streakErr) {
-      console.error('[Login] Streak calculation failed:', streakErr)
+      console.error('[Login] Streak/login calculation failed:', streakErr)
     }
 
     const redirectPath = route.query.redirect || '/'
