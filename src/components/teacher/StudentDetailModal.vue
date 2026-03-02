@@ -31,8 +31,8 @@
                    <div class="text-2xl font-black text-blue-600">{{ submissions.length }}</div>
                 </div>
                 <div class="text-center p-3 bg-white rounded-2xl shadow-sm border border-slate-100">
-                   <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">最高得分</div>
-                   <div class="text-2xl font-black text-red-800">{{ maxScore }}</div>
+                   <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">作業完成率</div>
+                   <div class="text-2xl font-black text-red-800">{{ completionRate }}%</div>
                 </div>
              </div>
 
@@ -189,10 +189,27 @@ const avgScore = computed(() => {
   return total / props.submissions.length
 })
 
-const maxScore = computed(() => {
-  if (!props.submissions.length) return 0
-  return Math.max(...props.submissions.map(s => getBestScore(s)))
-})
+const completionRate = ref(0)
+const calculateCompletion = async () => {
+  const all = await getAssignments()
+  const publicAssignments = all.filter(a => a.isPublic === true)
+  if (!publicAssignments.length) {
+    completionRate.value = 0
+    return
+  }
+
+  const passedIds = new Set(props.submissions.filter(s => {
+    const high = s.attempts && s.attempts.length > 0 ? Math.max(...s.attempts.map(a => a.score)) : (s.score || 0)
+    return high >= 60
+  }).map(s => s.assignmentId))
+
+  let passedPublicCount = 0
+  publicAssignments.forEach(a => {
+    if (passedIds.has(a.id)) passedPublicCount++
+  })
+
+  completionRate.value = Math.min(100, Math.round((passedPublicCount / publicAssignments.length) * 100))
+}
 
 const createChart = () => {
   if (chartInstance) chartInstance.destroy()
@@ -297,6 +314,9 @@ watch([() => props.isVisible, () => props.submissions, () => props.loading], ([v
   if (vis && !load && subs.length > 0) {
     nextTick(() => createChart())
   }
+  if (vis && !load) {
+    calculateCompletion()
+  }
 })
 
 const formatDate = (val) => {
@@ -315,7 +335,6 @@ const viewSubmissionDetail = async (sub) => {
     loadingDetail.value = true
     detailAssignment.value = null
     try {
-        const { getAssignmentById } = await import('../../services/api')
         const assignment = await getAssignmentById(sub.assignmentId)
         detailAssignment.value = assignment
     } catch (e) {
