@@ -53,19 +53,19 @@
               <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">篩選</span>
             </div>
             <select v-model="filters.format" class="form-element-ink !w-auto py-2 px-4 text-xs font-bold border-none bg-slate-50 rounded-xl">
-              <option value="">所有形式</option>
+              <option value="">形式</option>
               <option v-for="opt in ['純文', '圖表', '圖文']" :key="opt" :value="opt">{{ opt }}</option>
             </select>
             <select v-model="filters.contentType" class="form-element-ink !w-auto py-2 px-4 text-xs font-bold border-none bg-slate-50 rounded-xl">
-              <option value="">所有架構</option>
+              <option value="">架構</option>
               <option v-for="opt in ['記敘', '抒情', '說明', '議論', '應用']" :key="opt" :value="opt">{{ opt }}</option>
             </select>
             <select v-model="filters.difficulty" class="form-element-ink !w-auto py-2 px-4 text-xs font-bold border-none bg-slate-50 rounded-xl">
-              <option value="">所有難度</option>
+              <option value="">難度</option>
               <option v-for="opt in ['簡單', '基礎', '普通', '進階', '困難']" :key="opt" :value="opt">{{ opt }}</option>
             </select>
             <select v-model="filters.status" class="form-element-ink !w-auto py-2 px-4 text-xs font-bold border-none bg-slate-50 rounded-xl">
-              <option value="">挑戰期限</option>
+              <option value="">期限</option>
               <option value="active">進行中</option>
               <option value="overdue">已逾期</option>
               <option value="none">無期限</option>
@@ -142,11 +142,11 @@
                   <span :class="article.isPublic ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-400 border-slate-200'" 
                         class="px-4 py-1.5 text-xs font-black rounded-xl border shadow-sm inline-flex items-center gap-2">
                     <span :class="article.isPublic ? 'bg-emerald-500' : 'bg-slate-300'" class="w-1.5 h-1.5 rounded-full"></span>
-                    {{ article.isPublic ? '已公開發布' : '私密藏書' }}
+                    {{ article.isPublic ? '公開' : '私密' }}
                   </span>
                 </td>
                 <td class="px-8 py-5 text-right">
-                  <div class="flex justify-end gap-3 opacity-0 group-hover/row:opacity-100 transition-all translate-x-4 group-hover/row:translate-x-0">
+                  <div class="flex justify-end gap-3">
                     <button @click="editArticle(article)" class="flex items-center gap-1.5 py-1.5 px-4 bg-white text-slate-600 hover:text-red-800 rounded-xl border border-slate-200 shadow-sm transition-all" title="修訂">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                       <span class="text-xs font-bold">修訂</span>
