@@ -22,7 +22,7 @@ export default defineConfig({
   ],
   server: {
     fs: {
-      allow: ['src', 'public', 'node_modules']
+      allow: ['.']
     }
   }
 })
