@@ -41,6 +41,14 @@
               <span class="bg-white px-2 py-0.5 rounded border border-slate-100">挑戰：{{ sub.attempts?.length || 1 }} 次</span>
               <span v-if="sub.updatedAt" class="opacity-70">最近繳卷：{{ formatDate(sub.updatedAt) }}</span>
             </div>
+            <div class="text-[10px] pt-0.5">
+              <template v-if="assignmentDeadlines[sub.assignmentId]">
+                 <span :class="isLate(sub.updatedAt, assignmentDeadlines[sub.assignmentId]) ? 'text-rose-500 font-bold' : 'text-slate-400'">
+                   ⏳ 期限：{{ formatDate(assignmentDeadlines[sub.assignmentId]) }}
+                   <span v-if="isLate(sub.updatedAt, assignmentDeadlines[sub.assignmentId])">(已遲交)</span>
+                 </span>
+              </template>
+            </div>
           </div>
           <div :class="getScoreClass(sub)" class="font-black text-2xl flex flex-col items-end leading-tight">
             {{ getFirstScore(sub) }}
@@ -162,6 +170,15 @@ const avgScore = computed(() => {
   return total / props.submissions.length
 })
 
+const assignmentDeadlines = ref({})
+
+const isLate = (submitTime, deadline) => {
+  if (!submitTime || !deadline) return false;
+  const submitDate = submitTime.toDate ? submitTime.toDate().getTime() : new Date(submitTime).getTime();
+  const deadlineDate = deadline.toMillis ? deadline.toMillis() : new Date(deadline).getTime();
+  return submitDate > deadlineDate;
+}
+
 const completionRate = ref(0)
 const calculateCompletion = async () => {
   const all = await getAssignments()
@@ -175,13 +192,23 @@ const calculateCompletion = async () => {
     let deadlineTime = 0
     if (typeof a.deadline.toMillis === 'function') {
       deadlineTime = a.deadline.toMillis()
+      assignmentDeadlines.value[a.id] = a.deadline
     } else if (a.deadline.seconds) {
       deadlineTime = a.deadline.seconds * 1000
+      assignmentDeadlines.value[a.id] = a.deadline
     } else {
       deadlineTime = new Date(a.deadline).getTime()
+      assignmentDeadlines.value[a.id] = a.deadline
     }
     
     return deadlineTime < now
+  })
+  
+  // 把所有還沒到期的作業期限也存下來，以便顯示
+  all.forEach(a => {
+    if (a.isPublic && a.deadline && !assignmentDeadlines.value[a.id]) {
+      assignmentDeadlines.value[a.id] = a.deadline
+    }
   })
 
   // 如果這名學生目前沒有任何「已逾期」的文章，作業完成率預設算 100% 或是依已完成算

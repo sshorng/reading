@@ -57,6 +57,14 @@
                     <span class="bg-white px-2 py-0.5 rounded border border-slate-100">挑戰：{{ sub.attempts?.length || 1 }} 次</span>
                     <span v-if="sub.updatedAt" class="opacity-70">最近繳卷：{{ formatDate(sub.updatedAt) }}</span>
                   </div>
+                  <div class="text-[10px] pt-0.5">
+                    <template v-if="assignmentDeadlines[sub.assignmentId]">
+                       <span :class="isLate(sub.updatedAt, assignmentDeadlines[sub.assignmentId]) ? 'text-rose-500 font-bold' : 'text-slate-400'">
+                         ⏳ 期限：{{ formatDate(assignmentDeadlines[sub.assignmentId]) }}
+                         <span v-if="isLate(sub.updatedAt, assignmentDeadlines[sub.assignmentId])">(遲交)</span>
+                       </span>
+                    </template>
+                  </div>
                 </div>
                 <div :class="getScoreClass(sub)" class="font-black text-2xl flex flex-col items-end">
                   {{ sub.attempts && sub.attempts.length > 0 ? sub.attempts[0].score : sub.score }}
@@ -170,6 +178,15 @@ const props = defineProps({
 
 const emit = defineEmits(['close'])
 
+const assignmentDeadlines = ref({})
+
+const isLate = (submitTime, deadline) => {
+  if (!submitTime || !deadline) return false;
+  const submitDate = submitTime.toDate ? submitTime.toDate().getTime() : new Date(submitTime).getTime();
+  const deadlineDate = deadline.toMillis ? deadline.toMillis() : new Date(deadline).getTime();
+  return submitDate > deadlineDate;
+}
+
 const chartCanvas = ref(null)
 let chartInstance = null
 
@@ -203,13 +220,23 @@ const calculateCompletion = async () => {
     let deadlineTime = 0
     if (typeof a.deadline.toMillis === 'function') {
       deadlineTime = a.deadline.toMillis()
+      assignmentDeadlines.value[a.id] = a.deadline
     } else if (a.deadline.seconds) {
       deadlineTime = a.deadline.seconds * 1000
+      assignmentDeadlines.value[a.id] = a.deadline
     } else {
       deadlineTime = new Date(a.deadline).getTime()
+      assignmentDeadlines.value[a.id] = a.deadline
     }
     
     return deadlineTime < now
+  })
+
+  // 把所有還沒到期的作業期限也存下來，以便顯示
+  all.forEach(a => {
+    if (a.isPublic && a.deadline && !assignmentDeadlines.value[a.id]) {
+      assignmentDeadlines.value[a.id] = a.deadline
+    }
   })
 
   if (dueAssignments.length === 0) {
