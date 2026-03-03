@@ -95,30 +95,33 @@ const unlockedRecords = ref([])
 
 const currentRank = computed(() => {
     const count = unlockedRecords.value.length
-    if (count >= 50) return '萬卷歸宗'
-    if (count >= 45) return '超凡入聖'
-    if (count >= 40) return '天人合一'
-    if (count >= 35) return '登峰造極'
-    if (count >= 30) return '絕世大師'
-    if (count >= 25) return '一代宗師'
-    if (count >= 20) return '淵博大儒'
-    if (count >= 15) return '博學鴻儒'
-    if (count >= 10) return '文采斐然'
-    if (count >= 7) return '青雲志士'
-    if (count >= 4) return '展露頭角'
-    if (count >= 1) return '初出茅廬'
-    return '砥礪前行'
+    // 提供 50 個階級名稱，最高 50 件成就解鎖
+    const ranks = [
+        "初探書林", "入門學子", "勤學童生", "潛心求知", "展露頭角", 
+        "粗通文墨", "字裡尋幽", "開卷有益", "孜孜不倦", "文思泉湧", // 1-10
+        "初具慧眼", "涉獵廣泛", "青雲志士", "小學初成", "漸入佳境",
+        "博聞強記", "才思敏捷", "詞彙滿腹", "豁然開朗", "文章錦繡", // 11-20
+        "腹有詩書", "出口成章", "筆下生花", "文采斐然", "學海弄潮",
+        "書山攀客", "見多識廣", "博學鴻儒", "才高八斗", "學富五車", // 21-30
+        "字斟句酌", "學問淵博", "辯才無礙", "名列前茅", "棟樑之才",
+        "淵博大儒", "文章泰斗", "學究天人", "絕世大師", "一代宗師", // 31-40
+        "文壇鉅子", "登峰造極", "筆落驚風", "天人合一", "超凡入聖",
+        "字靈相通", "萬卷歸宗", "言出法隨", "千古文章", "天工開物"  // 41-50
+    ]
+    if (count === 0) return '砥礪前行'
+    const index = Math.min(count - 1, 49)
+    return ranks[index]
 })
 
 const unlockedAchievements = computed(() => {
     return allAchievements.value.filter(ach => 
         unlockedRecords.value.some(r => r.achievementId === ach.id)
     ).map(ach => {
-        const record = unlockedRecords.value.find(r => r.achievementId === ach.id)
+        const count = unlockedRecords.value.filter(r => r.achievementId === ach.id).length
         return { 
             ...ach, 
             isUnlocked: true,
-            unlockCount: record?.count || 1 
+            unlockCount: count || 1 
         }
     })
 })
@@ -159,16 +162,28 @@ const calculateProgress = (ach) => {
         }
     } else if (cond.type.startsWith('read_tag_contentType_')) {
         const tag = cond.type.replace('read_tag_contentType_', '')
-        current = studentSubmissions.filter(s => s.contentType === tag).length
+        const relatedSubs = studentSubmissions.filter(s => {
+            const assignment = allAssignmentsCache.value.find(a => a.id === s.assignmentId)
+            return assignment && assignment.contentType === tag
+        })
+        current = relatedSubs.length
     } else if (cond.type.startsWith('read_tag_difficulty_')) {
         const tag = cond.type.replace('read_tag_difficulty_', '')
-        current = studentSubmissions.filter(s => s.difficulty === tag).length
+        const relatedSubs = studentSubmissions.filter(s => {
+            const assignment = allAssignmentsCache.value.find(a => a.id === s.assignmentId)
+            return assignment && assignment.difficulty === tag
+        })
+        current = relatedSubs.length
+    } else if (cond.type === 'login_streak') {
+        current = authStore.currentUser?.loginStreak || 0
     }
     
     const target = cond.value || 1
     const progress = Math.min(100, Math.round((current / target) * 100))
     return { currentValue: current, targetValue: target, progress }
 }
+
+const allAssignmentsCache = ref([])
 
 const loadData = async () => {
     const studentId = authStore.currentUser?.studentId
@@ -177,6 +192,11 @@ const loadData = async () => {
     loading.value = true
     try {
         console.log("[Achievements] Loading data for student:", studentId)
+        // Ensure we load assignments to cross-reference their metadata
+        import('../../services/api').then(async ({ getAssignments }) => {
+            allAssignmentsCache.value = await getAssignments()
+        })
+        
         const [achSnap, unlSnap] = await Promise.all([
             getDocs(query(collection(db, 'achievements'), where('isEnabled', '==', true))),
             getDocs(query(collection(db, 'student_achievements'), where('studentId', '==', studentId)))

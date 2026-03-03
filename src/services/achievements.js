@@ -104,9 +104,23 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
             default:
                 // read_tag_* 類別
                 if (condition.type && condition.type.startsWith('read_tag_')) {
-                    const key = condition.type.replace('read_tag_', '')
-                    const tagCount = (sData.tagReadCounts || {})[key] || 0
-                    if (tagCount >= value) isMet = true
+                    const isContentType = condition.type.startsWith('read_tag_contentType_')
+                    const isDifficulty = condition.type.startsWith('read_tag_difficulty_')
+                    const allAssignments = eventData.allAssignments || []
+
+                    if (isContentType || isDifficulty) {
+                        const tag = condition.type.replace(isContentType ? 'read_tag_contentType_' : 'read_tag_difficulty_', '')
+                        const matchedSubs = studentSubmissions.filter(s => {
+                            const assignment = allAssignments.find(a => a.id === s.assignmentId)
+                            if (!assignment) return false
+                            return isContentType ? assignment.contentType === tag : assignment.difficulty === tag
+                        })
+                        if (matchedSubs.length >= value) isMet = true
+                    } else {
+                        const key = condition.type.replace('read_tag_', '')
+                        const tagCount = (studentData.tagReadCounts || {})[key] || 0
+                        if (tagCount >= value) isMet = true
+                    }
                 }
                 break
         }
@@ -141,6 +155,16 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
             if (needsSubs) {
                 studentSubmissions = await loadStudentSubmissions(studentId)
             }
+        }
+
+        const needsAssignments = allAchievements.some(ach => {
+            if (!ach.isRepeatable && unlockedMap.has(ach.id)) return false
+            return (ach.conditions || []).some(c => c.type?.startsWith('read_tag_'))
+        })
+
+        if (needsAssignments && !eventData.allAssignments) {
+            const { getAssignments } = await import('./api')
+            eventData.allAssignments = await getAssignments()
         }
 
         // 逐一檢查成就，收集待頒發的成就
