@@ -183,6 +183,7 @@ import { collection, query, where, getDocs, doc, setDoc, updateDoc, deleteDoc, w
 import { db } from '../../firebase/init'
 import { useAuthStore } from '../../stores/auth'
 import { hashString, generateDefaultPassword } from '../../utils/helpers'
+import { fetchAllSubmissionsByClass } from '../../services/api'
 import StudentEditModal from './StudentEditModal.vue'
 import StudentDetailModal from './StudentDetailModal.vue'
 
@@ -326,9 +327,7 @@ const generateOverdueReport = async () => {
       return
     }
 
-    const subQuery = query(collection(db, "submissions"), where('classId', '==', props.classId))
-    const subSnap = await getDocs(subQuery)
-    const classSubmissions = subSnap.docs.map(d => d.data())
+    const classSubmissions = await fetchAllSubmissionsByClass(props.classId)
     const results = []
     roster.value.forEach(student => {
       // 若為免修生，則不列入逾期催收

@@ -222,7 +222,13 @@ const getBestScore = (sub) => {
 }
 
 const sortedSubmissions = computed(() => {
-  return [...props.submissions].sort((a, b) => {
+  return [...props.submissions].map(sub => {
+    if (!sub.assignmentTitle && assignmentCache.value.length) {
+      const assig = assignmentCache.value.find(a => a.id === sub.assignmentId)
+      if (assig) return { ...sub, assignmentTitle: assig.title }
+    }
+    return sub
+  }).sort((a, b) => {
     const timeA = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : new Date(a.updatedAt || 0).getTime()
     const timeB = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : new Date(b.updatedAt || 0).getTime()
     return timeB - timeA
@@ -236,8 +242,10 @@ const avgScore = computed(() => {
 })
 
 const completionRate = ref(0)
+const assignmentCache = ref([])
 const calculateCompletion = async () => {
   const all = await getAssignments()
+  assignmentCache.value = all
   const now = Date.now()
   
   // 只計算公開且已經到期的文章
