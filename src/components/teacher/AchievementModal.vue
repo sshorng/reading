@@ -205,10 +205,47 @@ const handleSave = async () => {
 const autoGenerateAchievement = async () => {
     generatingAI.value = true
     try {
+        const hasExistingConditions = form.value.conditions && form.value.conditions.length > 0;
+        
+        let conditionPrompt = '';
+        if (hasExistingConditions) {
+            conditionPrompt = `目前的成就已經鎖定了以下條件架構：\n${JSON.stringify(form.value.conditions, null, 2)}\n請務必「保留這些 type」，你只能負責幫忙決定合理的數值 (value) 以及發想名稱與描述，絕對不能發明新的 type。`;
+        } else {
+            conditionPrompt = `目前沒有設定條件，請你從以下合法的條件模組 (type) 中，挑選 1 到 2 個來組合，並賦予合理的數值 (value)：
+【合法 type 列表】：
+- submission_count (總閱讀篇數)
+- genre_explorer (讀過幾種不同文體)
+- unique_formats_read (讀過幾種不同形式)
+- high_score_streak (連續幾次高分)
+- average_score (歷史初考總平均達幾分)
+- first_try_min_score (單篇初考達幾分)
+- perfect_score_count (最終滿分的總篇數)
+- recovery_count (不及格後訂正到滿分的總篇數)
+- min_retry_count (單篇重考超過幾次且及格)
+- login_streak (連續登入天數)
+- completion_streak (進度全清連續天數)
+- speed_under_seconds (作答短於幾秒且及格)
+- duration_over_seconds (作答長於幾秒且及格)
+- days_before_deadline (提早幾天交卷)
+- off_hours_count (深夜或極早晨交卷篇數)
+- read_tag_contentType_記敘 (或抒情/說明/議論/應用)
+- read_tag_difficulty_普通 (或基礎/進階/困難)
+
+警告：絕對不可發明上列以外的 type 屬性！`;
+        }
+
         const prompt = `你是一位學識淵博、充滿想像力的書院總教習。請為學習系統設計一個充滿創意與文藝氣息的勳章成就。
-名號需優雅典雅，脫離呆板。描述應如古人策勵般動人，結尾括號需寫明條件。
-目前手稿：${JSON.stringify(form.value, null, 2)}
-請傳回 JSON (name, icon, description, reasoning, conditions[{type, value}])。`
+設定名號需優雅典雅，脫離呆板。描述應如古人策勵般動人，結尾括號中可以用一句白話文解釋條件。
+${conditionPrompt}
+
+請傳回 JSON 格式，必須包含：
+{
+  "name": "成就名稱(字數勿太長)",
+  "description": "文雅的描述語 (達成條件)",
+  "icon": "單一個emoji符號",
+  "reasoning": "給總教習(我)的一句設計理念解說",
+  "conditions": [{ "type": "合法的type代碼", "value": 數字 }]
+}`;
         
         const schema = {
             type: "OBJECT",
@@ -218,7 +255,8 @@ const autoGenerateAchievement = async () => {
                 icon: { type: "STRING" },
                 reasoning: { type: "STRING" },
                 conditions: { type: "ARRAY", items: { type: "OBJECT", properties: { type: { type: "STRING" }, value: { type: "NUMBER" } } } }
-            }
+            },
+            required: ["name", "description", "icon", "reasoning", "conditions"]
         };
 
         const res = await callGenerativeAI(prompt, null, schema, 'teacher');
@@ -226,9 +264,12 @@ const autoGenerateAchievement = async () => {
         form.value.name = data.name;
         form.value.description = data.description;
         form.value.icon = data.icon;
-        if (data.conditions) form.value.conditions = data.conditions;
+        if (data.conditions && data.conditions.length > 0) {
+            form.value.conditions = data.conditions;
+        }
         alert(`AI 夫子諫言：\n${data.reasoning}`);
     } catch (e) {
+        console.error(e)
         alert('AI 創思受阻，請稍後。')
     } finally {
         generatingAI.value = false
