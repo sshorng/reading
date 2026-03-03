@@ -171,6 +171,8 @@ const calculateProgress = (ach) => {
         current = relatedSubs.length
     } else if (cond.type === 'login_streak') {
         current = authStore.currentUser?.loginStreak || 0
+    } else if (cond.type === 'high_score_streak') {
+        current = authStore.currentUser?.highScoreStreak || 0
     }
     
     const target = cond.value || 1
