@@ -353,8 +353,7 @@ const copyOverdueList = async () => {
   if (overdueData.value.length === 0) return
   
   const lines = overdueData.value.map(stu => {
-    const taskTitles = stu.tasks.map(t => t.title).join('、')
-    return `${stu.seatNumber}號 ${stu.name} 尚未繳交：${taskTitles}`
+    return `${stu.seatNumber}號 ${stu.name} 缺交 ${stu.tasks.length} 篇`
   })
   
   const textToCopy = `【書院課業逾期名單】\n${lines.join('\n')}`
@@ -367,8 +366,6 @@ const copyOverdueList = async () => {
     alert('複製失敗，請手動選取複製')
   }
 }
-
-
 
 const viewStudentSubmissions = async (student) => {
   currentStudentDetail.value = student
