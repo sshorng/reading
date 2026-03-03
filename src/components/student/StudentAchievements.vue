@@ -16,20 +16,30 @@
       </div>
     </div>
 
-    <!-- Achievement Tabs or Groups -->
-    <div class="space-y-8">
-      <div v-for="cat in achievementCategories" :key="cat.name" class="space-y-4">
-        <div class="flex items-center gap-4">
-          <div class="h-px bg-slate-200 flex-grow"></div>
-          <h2 class="text-xs font-black text-slate-500 uppercase tracking-[0.2em] bg-white px-3">{{ cat.name }}</h2>
-          <div class="h-px bg-slate-200 flex-grow"></div>
-        </div>
+    <!-- Filter Bar -->
+    <div class="flex flex-wrap gap-2 mb-8 animate-fade-in pl-1">
+      <button @click="currentFilter = 'all'" 
+              :class="currentFilter === 'all' ? 'bg-slate-800 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" 
+              class="px-5 py-2 rounded-full text-sm font-bold transition-all">
+        全覽
+      </button>
+      <button v-for="(cat, idx) in conditionOptions" :key="idx"
+              @click="currentFilter = cat.label"
+              :class="currentFilter === cat.label ? 'bg-red-800 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+              class="px-4 py-2 rounded-full text-sm font-bold transition-all flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full" :class="getCategoryColorClass(cat.label, true)"></span>
+        {{ cat.label }}
+      </button>
+    </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div v-for="ach in cat.items" :key="ach.id" 
+    <!-- Achievement Grid -->
+    <div class="space-y-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div v-for="ach in filteredAchievements" :key="ach.id" 
                :class="[
-                 'relative p-4 rounded-xl border transition-colors duration-200 group overflow-hidden',
-                 ach.isUnlocked ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200 shadow-sm' : 'bg-slate-50/50 border-slate-100 grayscale opacity-70'
+                 'relative p-5 rounded-2xl border-y border-r border-l-4 transition-all duration-300 group overflow-hidden flex flex-col',
+                 ach.isUnlocked ? 'bg-white border-slate-100 shadow-md hover:shadow-xl hover:-translate-y-1' : 'bg-slate-50/50 border-slate-100 grayscale opacity-70',
+                 getCategoryColorClassByCondition(ach.conditions && ach.conditions[0]?.type)
                ]">
 
             <!-- Unlock Visual Effect / Stamp -->
@@ -37,9 +47,9 @@
                 <span class="stamp-text">達成</span>
             </div>
 
-            <div class="flex items-start gap-4">
+            <div class="flex items-start gap-4 mb-4">
               <div :class="[
-                  'text-4xl flex-shrink-0',
+                  'text-4xl flex-shrink-0 w-14 h-14 bg-slate-50 flex items-center justify-center rounded-xl shadow-inner group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500',
                   ach.isUnlocked ? '' : 'filter grayscale opacity-50'
                 ]">
                 <template v-if="!ach.isUnlocked && ach.isHidden">❓</template>
@@ -47,28 +57,34 @@
               </div>
               
               <div class="flex-grow min-w-0 z-10 pt-1">
-                <h3 class="font-bold text-base text-gray-800">
+                <h3 class="font-bold text-lg text-gray-800">
                     {{ (!ach.isUnlocked && ach.isHidden) ? '神祕成就' : ach.name }}
-                    <span v-if="ach.isUnlocked && ach.unlockCount > 1" class="ml-2 text-xs text-amber-600 font-bold">×{{ ach.unlockCount }}</span>
+                    <span v-if="ach.isUnlocked && ach.unlockCount > 1" class="ml-2 px-2 py-0.5 rounded text-xs bg-amber-50 text-amber-600 border border-amber-100 font-bold">×{{ ach.unlockCount }}</span>
                 </h3>
-                <p class="text-xs text-gray-500 mt-0.5 leading-snug">
+                <p class="text-xs text-gray-500 mt-1.5 leading-relaxed line-clamp-2">
                     {{ (!ach.isUnlocked && ach.isHidden) ? '此成就在解鎖前保持神祕，請繼續努力修業！' : ach.description }}
                 </p>
                 
-                <div v-if="!ach.isUnlocked && ach.progress !== undefined && !ach.isHidden" class="mt-3">
-                    <div class="flex justify-between items-center text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-1">
-                        <span>{{ ach.currentValue }} / {{ ach.targetValue }}</span>
-                        <span>{{ ach.progress }}%</span>
-                    </div>
-                    <div class="h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                        <div class="h-full bg-gradient-to-r from-teal-400 to-teal-500 rounded-full transition-all duration-500" :style="{ width: `${ach.progress}%` }"></div>
-                    </div>
-                </div>
               </div>
+            </div>
+
+            <div v-if="!ach.isUnlocked && ach.progress !== undefined && !ach.isHidden" class="mt-auto pt-4 border-t border-slate-50">
+                <div class="flex justify-between items-center text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-1.5">
+                    <span>{{ getConditionLabel(ach.conditions[0]?.type) }}</span>
+                    <span>{{ ach.currentValue }} / {{ ach.targetValue }} ({{ ach.progress }}%)</span>
+                </div>
+                <div class="h-2 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                    <div class="h-full bg-gradient-to-r from-teal-400 to-emerald-500 rounded-full transition-all duration-1000" :style="{ width: `${ach.progress}%` }"></div>
+                </div>
+            </div>
+            
+            <div v-else class="mt-auto pt-4 border-t border-slate-50 flex flex-wrap gap-2">
+                 <span v-for="(cond, cIdx) in (ach.isHidden && !ach.isUnlocked ? [] : ach.conditions)" :key="cIdx" class="px-2.5 py-1 rounded-md border border-slate-100 font-bold bg-slate-50/80 text-slate-500 text-xs shadow-inner">
+                   {{ getConditionLabel(cond.type) }}{{ cond.value !== undefined ? ': ' + cond.value : '' }}
+                 </span>
             </div>
           </div>
         </div>
-      </div>
     </div>
     
     <div v-if="loading" class="py-20 text-center flex flex-col items-center gap-4">
@@ -134,13 +150,55 @@ const lockedAchievements = computed(() => {
     })
 })
 
-const achievementCategories = computed(() => {
+const conditionOptions = [
+    { label: '【基礎與廣度】', options: [{ value: 'submission_count', text: '總閱讀篇數 (篇)' }, { value: 'genre_explorer', text: '文體全通 (完成 N 種不同文體)' }, { value: 'unique_formats_read', text: '形式大師 (完成 N 種不同形式)' }, ...['記敘', '抒情', '說明', '議論', '應用'].map(tag => ({ value: `read_tag_contentType_${tag}`, text: `完成「${tag}」文章數 (篇)` })), ...['基礎', '普通', '進階', '困難'].map(tag => ({ value: `read_tag_difficulty_${tag}`, text: `完成「${tag}」難度數 (篇)` }))] },
+    { label: '【精準與品質】(嚴看初考)', options: [{ value: 'high_score_streak', text: '連續高分次數 (次)' }, { value: 'average_score', text: '歷史初考總平均達標 (分)' }, { value: 'first_try_min_score', text: '單篇「初考」達標指定分數' }] },
+    { label: '【毅力與重修】(鼓勵練習)', options: [{ value: 'perfect_score_count', text: '最終獲得 100 分的總篇數 (篇)' }, { value: 'recovery_count', text: '初考不及格，但最終滿分的總篇數 (篇)' }, { value: 'min_retry_count', text: '單篇重考超過 N 次且及格' }] },
+    { label: '【恆心與進階】', options: [{ value: 'login_streak', text: '連續登入天數 (天)' }, { value: 'completion_streak', text: '課業全清連續天數 (天)' }, { value: 'weekly_progress', text: '本週進步與否' }] },
+    { label: '【效率與作息】(特殊模組)', options: [{ value: 'speed_under_seconds', text: '單篇極速完賽短於 N 秒且及格' }, { value: 'duration_over_seconds', text: '長篇細讀作答長於 N 秒且及格' }, { value: 'days_before_deadline', text: '未雨綢繆：在期限前提早 N 天交卷' }, { value: 'off_hours_count', text: '深夜或極早晨交卷的總篇數 (篇)' }] }
+]
+
+const getConditionLabel = (type) => {
+  if (!type) return ''
+  for (const grp of conditionOptions) {
+    const found = grp.options.find(o => o.value === type)
+    if (found) return found.text
+  }
+  return type
+}
+
+const getCategoryColorClass = (label, bgOnly = false) => {
+  if (!label) return bgOnly ? 'bg-slate-300' : 'border-l-slate-300'
+  if (label.includes('基礎與廣度')) return bgOnly ? 'bg-emerald-400' : 'border-l-emerald-400 hover:border-emerald-500'
+  if (label.includes('精準與品質')) return bgOnly ? 'bg-amber-400' : 'border-l-amber-400 hover:border-amber-500'
+  if (label.includes('毅力與重修')) return bgOnly ? 'bg-rose-400' : 'border-l-rose-400 hover:border-rose-500'
+  if (label.includes('恆心與進階')) return bgOnly ? 'bg-blue-400' : 'border-l-blue-400 hover:border-blue-500'
+  if (label.includes('效率與作息')) return bgOnly ? 'bg-purple-400' : 'border-l-purple-400 hover:border-purple-500'
+  return bgOnly ? 'bg-slate-300' : 'border-l-slate-300'
+}
+
+const getCategoryColorClassByCondition = (type) => {
+  if (!type) return 'border-l-slate-300'
+  for (const grp of conditionOptions) {
+    if (grp.options.find(o => o.value === type)) {
+      return getCategoryColorClass(grp.label)
+    }
+  }
+  return 'border-l-slate-300'
+}
+
+const currentFilter = ref('all')
+
+const filteredAchievements = computed(() => {
     const all = [...unlockedAchievements.value, ...lockedAchievements.value]
-    return [
-        { name: '修業功名', items: all.filter(a => a.conditions?.some(c => c.type === 'submission_count' || c.type === 'average_score')) },
-        { name: '專研獎章', items: all.filter(a => a.conditions?.some(c => c.type.startsWith('read_tag'))) },
-        { name: '其他成就', items: all.filter(a => !a.conditions?.some(c => c.type === 'submission_count' || c.type === 'average_score' || c.type.startsWith('read_tag'))) }
-    ].filter(cat => cat.items.length > 0)
+    if (currentFilter.value === 'all') return all
+    
+    return all.filter(ach => {
+        return ach.conditions && ach.conditions.some(cond => {
+            const category = conditionOptions.find(cat => cat.label === currentFilter.value)
+            return category && category.options.some(opt => opt.value === cond.type)
+        })
+    })
 })
 
 const calculateProgress = (ach) => {
