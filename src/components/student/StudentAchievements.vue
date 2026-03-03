@@ -98,18 +98,13 @@ const currentRank = computed(() => {
     // 提供 50 個階級名稱，最高 50 件成就解鎖
     const ranks = [
         "初探書林", "入門學子", "勤學童生", "潛心求知", "展露頭角", 
-        "粗通文墨", "字裡尋幽", "開卷有益", "孜孜不倦", "文思泉湧", // 1-10
+        "粗通文墨", "字裡尋幽", "開卷有益", "孜孜不倦", "文思泉湧", // 1-10 (1~20 成就)
         "初具慧眼", "涉獵廣泛", "青雲志士", "小學初成", "漸入佳境",
-        "博聞強記", "才思敏捷", "詞彙滿腹", "豁然開朗", "文章錦繡", // 11-20
-        "腹有詩書", "出口成章", "筆下生花", "文采斐然", "學海弄潮",
-        "書山攀客", "見多識廣", "博學鴻儒", "才高八斗", "學富五車", // 21-30
-        "字斟句酌", "學問淵博", "辯才無礙", "名列前茅", "棟樑之才",
-        "淵博大儒", "文章泰斗", "學究天人", "絕世大師", "一代宗師", // 31-40
-        "文壇鉅子", "登峰造極", "筆落驚風", "天人合一", "超凡入聖",
-        "字靈相通", "萬卷歸宗", "言出法隨", "千古文章", "天工開物"  // 41-50
+        "博聞強記", "才思敏捷", "詞彙滿腹", "豁然開朗", "文章錦繡", // 11-20 (21~40 成就)
+        "腹有詩書", "博學鴻儒", "才高八斗", "學富五車", "一代宗師"  // 21-25 (41~50 成就)
     ]
     if (count === 0) return '砥礪前行'
-    const index = Math.min(count - 1, 49)
+    const index = Math.min(Math.floor((count - 1) / 2), 24)
     return ranks[index]
 })
 
@@ -192,10 +187,9 @@ const loadData = async () => {
     loading.value = true
     try {
         console.log("[Achievements] Loading data for student:", studentId)
-        // Ensure we load assignments to cross-reference their metadata
-        import('../../services/api').then(async ({ getAssignments }) => {
-            allAssignmentsCache.value = await getAssignments()
-        })
+        // Ensure we load assignments synchronously to cross-reference their metadata before computing progress
+        const { getAssignments } = await import('../../services/api')
+        allAssignmentsCache.value = await getAssignments()
         
         const [achSnap, unlSnap] = await Promise.all([
             getDocs(query(collection(db, 'achievements'), where('isEnabled', '==', true))),
