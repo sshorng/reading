@@ -279,8 +279,17 @@ const toggleSelectAll = (e) => {
 }
 
 const formatDate = (ts) => {
-  if (!ts || !ts.toDate) return ''
-  const d = ts.toDate()
+  if (!ts) return ''
+  let d
+  if (ts.toDate) {
+    d = ts.toDate()
+  } else if (ts.seconds) {
+    d = new Date(ts.seconds * 1000)
+  } else {
+    d = new Date(ts)
+  }
+  
+  if (isNaN(d.getTime())) return ''
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
 

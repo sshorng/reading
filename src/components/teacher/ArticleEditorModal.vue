@@ -289,13 +289,17 @@ const form = ref({
 // Initialize local form whenever data changes
 watch(() => props.articleData, (newData) => {
   if (newData) {
-    const clone = JSON.parse(JSON.stringify(newData))
-    if (!clone.analysis) clone.analysis = { explanation: '', mindmap: '', thinking_questions: '' }
-    if (!clone.tags) clone.tags = { format: '純文', contentType: '記敘', difficulty: '普通' }
+    // 使用淺拷貝並手動處理嵌套對象，避免 JSON.stringify 破壞 Timestamp
+    const clone = { 
+      ...newData,
+      tags: { ...(newData.tags || { format: '純文', contentType: '記敘', difficulty: '普通' }) },
+      analysis: { ...(newData.analysis || { explanation: '', mindmap: '', thinking_questions: '' }) },
+      questions: newData.questions ? JSON.parse(JSON.stringify(newData.questions)) : []
+    }
     
     let dStr = ''
     if (clone.deadline) {
-      const d = clone.deadline.toDate ? clone.deadline.toDate() : new Date(clone.deadline)
+      const d = clone.deadline.toDate ? clone.deadline.toDate() : new Date(clone.deadline.seconds ? clone.deadline.seconds * 1000 : clone.deadline)
       if (!isNaN(d.getTime())) {
         dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
       }
@@ -308,7 +312,9 @@ watch(() => props.articleData, (newData) => {
 const handleSave = async () => {
   saving.value = true
   try {
-    const { deadlineStr, id, ...payload } = form.value
+    const { deadlineStr, id, createdAt, teacherId, teacherName, ...cleanPayload } = form.value
+    const payload = { ...cleanPayload }
+    
     if (deadlineStr) {
       payload.deadline = Timestamp.fromDate(new Date(deadlineStr + "T23:59:59"))
     } else {

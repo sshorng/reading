@@ -78,7 +78,8 @@ const isPassed = computed(() => isCompleted.value && highestScore.value >= 60)
 
 const isOverdue = computed(() => {
   if (!props.assignment.deadline) return false
-  const deadlineDate = props.assignment.deadline.toDate()
+  const deadline = props.assignment.deadline
+  const deadlineDate = deadline.toDate ? deadline.toDate() : new Date(deadline.seconds ? deadline.seconds * 1000 : deadline)
   return new Date() > deadlineDate
 })
 
@@ -88,7 +89,9 @@ const cardBorderClass = computed(() => {
 
 const formattedDeadline = computed(() => {
   if (!props.assignment.deadline) return ''
-  const d = props.assignment.deadline.toDate()
+  const deadline = props.assignment.deadline
+  const d = deadline.toDate ? deadline.toDate() : new Date(deadline.seconds ? deadline.seconds * 1000 : deadline)
+  if (isNaN(d.getTime())) return ''
   return `${d.getMonth() + 1}/${d.getDate()}`
 })
 
