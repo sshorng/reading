@@ -158,6 +158,7 @@ let chartInstance = null
 const selectedSubDetail = ref(null)
 const detailAssignment = ref(null)
 const loadingDetail = ref(false)
+const completionRate = ref(0)
 
 const getFirstScore = (sub) => {
   if (sub.attempts && sub.attempts.length > 0) {
