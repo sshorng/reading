@@ -214,7 +214,7 @@ const formatDateTime = (ts) => {
   return `${m}/${d} ${hh}:${mm}`
 }
 
-const getBestScore = (sub) => {
+const getFirstScore = (sub) => {
   if (sub.attempts && sub.attempts.length > 0) {
     return sub.attempts[0].score
   }
@@ -237,7 +237,7 @@ const sortedSubmissions = computed(() => {
 
 const avgScore = computed(() => {
   if (!props.submissions.length) return 0
-  const total = props.submissions.reduce((sum, s) => sum + getBestScore(s), 0)
+  const total = props.submissions.reduce((sum, s) => sum + getFirstScore(s), 0)
   return total / props.submissions.length
 })
 
@@ -320,7 +320,7 @@ const createChart = () => {
     if (!weekData.has(weekKey)) {
       weekData.set(weekKey, { label, scores: [], count: 0, ts: monday.getTime() })
     }
-    weekData.get(weekKey).scores.push(getBestScore(sub)) // getBestScore already returns first score here
+    weekData.get(weekKey).scores.push(getFirstScore(sub))
     weekData.get(weekKey).count++
   })
 
@@ -404,7 +404,7 @@ watch([() => props.isVisible, () => props.submissions, () => props.loading], ([v
 
 
 const getScoreClass = (sub) => {
-  const score = getBestScore(sub)
+  const score = getFirstScore(sub)
   return score >= 60 ? 'text-teal-600' : 'text-rose-600'
 }
 

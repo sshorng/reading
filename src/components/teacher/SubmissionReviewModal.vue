@@ -117,17 +117,18 @@
                     作答歷程回溯
                   </h4>
                   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div v-for="(att, idx) in selectedSubmission.attempts" :key="idx" 
-                         class="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center">
-                       <div class="flex flex-col">
-                          <span class="text-[10px] font-black text-amber-800/40 uppercase">Attempt</span>
-                          <span class="text-xs font-black text-amber-900">第 {{ idx + 1 }} 次挑戰</span>
-                       </div>
-                       <div class="text-right">
-                         <div class="text-xl font-black text-amber-600 leading-none">{{ att.score }}%</div>
-                         <div class="text-[10px] text-amber-800/40 mt-1 font-mono">⏱ {{ formatTime(att.durationSeconds || 0) }}</div>
-                       </div>
-                    </div>
+                      <div v-for="(att, idx) in selectedSubmission.attempts" :key="idx" 
+                           class="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center"
+                           :class="idx === 0 ? 'ring-2 ring-amber-500/20 shadow-sm border-amber-200' : ''">
+                        <div class="flex flex-col">
+                           <span class="text-[10px] font-black text-amber-800/40 uppercase">{{ idx === 0 ? 'Initial' : 'Subsequent' }}</span>
+                           <span class="text-xs font-black text-amber-900">{{ idx === 0 ? '初次應試' : `第 ${idx + 1} 次挑戰` }}</span>
+                        </div>
+                        <div class="text-right">
+                          <div class="text-xl font-black text-amber-600 leading-none">{{ att.score }}%</div>
+                          <div class="text-[10px] text-amber-800/40 mt-1 font-mono">⏱ {{ formatTime(att.durationSeconds || 0) }}</div>
+                        </div>
+                      </div>
                   </div>
                </div>
 

@@ -65,16 +65,30 @@ const currentSubmission = computed(() => {
 
 const isCompleted = computed(() => !!currentSubmission.value)
 
-const highestScore = computed(() => {
+const firstScore = computed(() => {
   if (!isCompleted.value) return 0
   const sub = currentSubmission.value
   if (sub.attempts && sub.attempts.length > 0) {
-    return Math.max(...sub.attempts.map(a => a.score))
+    return sub.attempts[0].score
   }
   return sub.score || 0
 })
 
-const isPassed = computed(() => isCompleted.value && highestScore.value >= 60)
+const subsequentScores = computed(() => {
+  if (!isCompleted.value) return []
+  const sub = currentSubmission.value
+  if (sub.attempts && sub.attempts.length > 1) {
+    return sub.attempts.slice(1).map(a => a.score)
+  }
+  return []
+})
+
+const isPassed = computed(() => {
+  if (!isCompleted.value) return false
+  const sub = currentSubmission.value
+  const high = sub.attempts && sub.attempts.length > 0 ? Math.max(...sub.attempts.map(a => a.score)) : (sub.score || 0)
+  return high >= 60
+})
 
 const isOverdue = computed(() => {
   if (!props.assignment.deadline) return false
@@ -104,7 +118,13 @@ const articleSnippet = computed(() => {
 
 const actionText = computed(() => {
   if (isPassed.value) return '查看結果'
-  if (isCompleted.value) return `再次挑戰 (${highestScore.value}分)`
+  if (isCompleted.value) {
+    let text = `再次挑戰 (${firstScore.value}分`
+    if (subsequentScores.value.length > 0) {
+      text += ` / 續: ${subsequentScores.value.join(', ')}`
+    }
+    return text + ')'
+  }
   return '開始試煉'
 })
 
