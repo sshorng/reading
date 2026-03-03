@@ -91,9 +91,9 @@ export async function callGenerativeAI(prompt, modelOverride = null, schema = nu
  * 依題起草篇章與試卷 (移植自 teacher.js)
  */
 export async function generateAssignmentFromTopic(topic, tags) {
-    const tagFormat = tags.format || '純文';
-    const tagContentType = tags.contentType || '說明';
-    const tagDifficulty = tags.difficulty || '普通';
+    const tagFormat = tags.format || '';
+    const tagContentType = tags.contentType || '';
+    const tagDifficulty = tags.difficulty || '';
 
     const getDifficultyInstructions = (difficulty) => {
         switch (difficulty) {
@@ -112,7 +112,9 @@ export async function generateAssignmentFromTopic(topic, tags) {
         }
     };
 
-    const difficultyInstruction = getDifficultyInstructions(tagDifficulty);
+    const difficultyInstruction = tagDifficulty
+        ? getDifficultyInstructions(tagDifficulty)
+        : `*   **文章風格**: 請依據您的專業，針對此主題判斷何種難度（簡單、基礎、普通、進階、困難）最能發揮。並依據該難度該有的字彙深度、句式複雜度與修辭手法撰寫。\n*   **試題風格**: 根據您的難度設定，調配合適的 PISA 問題層次分佈。`;
 
     const contentTypeInstructions = {
         '記敘': '**寫作手法提醒：請務必使用記敘文體，包含明確的人物、時間、地點和事件經過，著重於故事的發展與情節的描述，避免使用過於客觀或分析性的說明語氣。**',
@@ -121,7 +123,7 @@ export async function generateAssignmentFromTopic(topic, tags) {
     };
     const styleInstruction = contentTypeInstructions[tagContentType] || '';
 
-    let articleInstruction;
+    let articleInstruction = '';
     const mermaidInstruction = `\n    * **圖表運用指南**：請優先考慮使用 **Mermaid.js 語法** 來建立視覺化圖表，以更生動地呈現資訊。
         * **圖表類型**：請根據內容選擇最合適的圖表，例如用 \`xychart-beta\` 呈現數據、用 \`flowchart\` 展示流程、用 \`pie\` 顯示比例等。
         * **語法規則**：圖表語法需以 \`\`\`mermaid 開頭，以 \`\`\` 結尾。
@@ -132,8 +134,10 @@ export async function generateAssignmentFromTopic(topic, tags) {
         articleInstruction = `**請以一個主要的 Mermaid 圖表或 Markdown 表格作為文章核心**。所有文字內容應是針對此圖表的簡潔說明，重點在於測驗學生詮釋圖表資訊的能力。${mermaidInstruction}`;
     } else if (tagFormat === '圖文') {
         articleInstruction = `撰寫一篇優質連續文本文章，內容需清晰、有深度、層次分明，且**務必分段**。**請務必在文章內容中，插入一個以上與主題相關、能輔助說明的 Mermaid 圖表或 Markdown 表格**，用以測驗圖文整合能力。${mermaidInstruction}`;
-    } else { // 純文
+    } else if (tagFormat === '純文') {
         articleInstruction = `撰寫一篇優質文章，內容需清晰、有深度、層次分明，且**務必分段**。`;
+    } else {
+        articleInstruction = `撰寫一篇優質文章，內容需清晰、有深度、層次分明，且**務必分段**。請自行判斷是否需要搭配圖表，若需要，${mermaidInstruction}`;
     }
 
     let questionLevelInstruction = '題目層次分配如下：第 1 題：**擷取與檢索**。第 2、3 題：**統整與解釋**。第 4、5 題：**省思與評鑑**。';
@@ -160,10 +164,10 @@ ${difficultyInstruction}
         - 正確答案在四個選項中的位置必須隨機分布（0, 1, 2, 3）
     * **答題解析要求**：每題的 explanation 必須包含：(1) 明確說明正確答案的原因並引用原文佐證 (2) 逐一解釋其他三個選項為何錯誤
     * ${questionLevelInstruction}
-3.  **標籤要求**：
-    * **形式**: 請生成「${tagFormat}」形式的內容。
-    * **內容**: 請生成「${tagContentType}」類型的內容。
-    * **難度**: 請嚴格遵循上方的「難度指引」來生成「${tagDifficulty}」難度的內容，並將此難度作為標籤。
+3.  **標籤要求**（若未特別指定，請依據您產生內容的實際狀況自主填入最恰當的屬性）：
+    * **形式**: ${tagFormat ? `請生成「${tagFormat}」形式的內容。` : `請自行判斷最適當的形式，於標籤填入純文、圖文或圖表。`}
+    * **內容**: ${tagContentType ? `請生成「${tagContentType}」類型的內容。` : `請自行判斷最適當的文體，於標籤填入記敘、抒情、說明、議論或應用。`}
+    * **難度**: ${tagDifficulty ? `請嚴格遵循上方的「難度指引」來生成「${tagDifficulty}」難度的內容，並將此難度作為標籤。` : `請自行決定最適當的難度，於標籤填入簡單、基礎、普通、進階或困難。`}
 4.  **產出格式**：請嚴格按照指定的 JSON 格式輸出，不要包含 JSON 格式以外的任何文字。`;
 
     const schema = {
