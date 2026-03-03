@@ -113,7 +113,14 @@ const currentRank = computed(() => {
 const unlockedAchievements = computed(() => {
     return allAchievements.value.filter(ach => 
         unlockedRecords.value.some(r => r.achievementId === ach.id)
-    ).map(ach => ({ ...ach, isUnlocked: true }))
+    ).map(ach => {
+        const record = unlockedRecords.value.find(r => r.achievementId === ach.id)
+        return { 
+            ...ach, 
+            isUnlocked: true,
+            unlockCount: record?.count || 1 
+        }
+    })
 })
 
 const lockedAchievements = computed(() => {
