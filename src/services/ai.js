@@ -149,7 +149,7 @@ export async function generateAssignmentFromTopic(topic, tags) {
         - 第 2、3 題：**統整與解釋** (歸納段落主旨、理解代名詞所指、推論作者未明言的觀點)。
         - 第 4、5 題：**省思與評鑑** (評估文章寫作手法、將文本資訊應用於新情境、或比較不同觀點)。`;
 
-    const prompt = `你是一位專為台灣國中生出題的資深國文科教研專家，請設計一份素養導向的閱讀測驗。所有文本與試題的難度應以「普通」難度作為「國中教育會考」的基準，再根據使用者指定的難度標籤，適度調整文章長度、詞彙深度、句式複雜度與題目鑑別度。
+    const prompt = `你是一位專為台灣國中生出題的資深國文科教研專家，請設計一份素養導向的閱讀測驗篇章。所有文本的難度應以「普通」難度作為「國中教育會考」的基準，再根據使用者指定的難度標籤，適度調整文章長度、詞彙深度、句式複雜度。
 主題：「${topic}」
 請遵循以下專業要求：
 1.  **篇章撰寫**：
@@ -161,33 +161,17 @@ export async function generateAssignmentFromTopic(topic, tags) {
 ${difficultyInstruction}
     * ${articleInstruction}
     * **絕不使用圖片或圖片語法**。
-    * **試題設計極重要規範（務必嚴格遵守）**：
-        - 根據篇章，設計 5 道符合 PISA 閱讀素養三層次的單選題。
-        - **試題必須是客觀題，答案能直接或間接從文本中找到，絕不可出現『你認為』、『你覺得』等沒有標準答案的開放式問句。**
-        - **選項設計要求**：錯誤選項必須是「有意義的誘答選項」，反映學生常見的迷思概念（如：只看關鍵詞忽略上下文、混淆因果與相關、過度推論、斷章取義等）。四個選項的長度與結構應盡量一致。正確答案在四個選項中的位置必須隨機分布（0, 1, 2, 3 不可固定）。
-        - ${questionLevelInstruction}
-    * **答題解析要求**：每題的 explanation 必須清晰嚴謹：(1) 明確指出正解在原文中的根據。(2) 逐一解釋其他三個誘答選項為何錯誤（例如：A 選項過度推論、B 選項張冠李戴、C 選項與原文第一段矛盾）。
-3.  **標籤要求**（若未特別指定，請依據您產生內容的實際狀況自主填入最恰當的屬性）：
+2.  **標籤要求**（若未特別指定，請依據您產生內容的實際狀況自主填入最恰當的屬性）：
     * **形式**: ${tagFormat ? `請生成「${tagFormat}」形式的內容。` : `請自行判斷最適當的形式，於標籤填入純文、圖文或圖表。`}
     * **內容**: ${tagContentType ? `請生成「${tagContentType}」類型的內容。` : `請自行判斷最適當的文體，於標籤填入記敘、抒情、說明、議論或應用。`}
     * **難度**: ${tagDifficulty ? `請嚴格遵循上方的「難度指引」來生成「${tagDifficulty}」難度的內容，並將此難度作為標籤。` : `請自行決定最適當的難度，於標籤填入簡單、基礎、普通、進階或困難。`}
-4.  **產出格式**：請嚴格按照指定的 JSON 格式輸出，不要包含 JSON 格式以外的任何文字。`;
+3.  **產出格式**：請嚴格按照指定的 JSON 格式輸出，不要包含 JSON 格式以外的任何文字。`;
 
     const schema = {
         type: "OBJECT",
         properties: {
             title: { type: "STRING" },
             article: { type: "STRING" },
-            questions: {
-                type: "ARRAY", items: {
-                    type: "OBJECT", properties: {
-                        questionText: { type: "STRING" },
-                        options: { type: "ARRAY", items: { type: "STRING" } },
-                        correctAnswerIndex: { type: "NUMBER" },
-                        explanation: { type: "STRING" }
-                    }, required: ["questionText", "options", "correctAnswerIndex", "explanation"]
-                }
-            },
             tags: {
                 type: "OBJECT", properties: {
                     format: { type: "STRING" },
@@ -196,7 +180,7 @@ ${difficultyInstruction}
                 }, required: ["format", "contentType", "difficulty"]
             }
         },
-        required: ["title", "article", "questions", "tags"]
+        required: ["title", "article", "tags"]
     };
 
     const res = await callGenerativeAI(prompt, null, schema);
@@ -234,7 +218,23 @@ ${formatReq}${contentTypeReq}${difficultyReq}。
  * 為貼入的文章生成試題
  */
 export async function generateQuestionsFromText(title, article, tags) {
-    const prompt = `針對此篇章設計 5 道 PISA 閱讀素養單選題：\n《${title}》\n文章：${article}\n要求：第1題擷取，2-3統整，4-5省思。選項位置隨機。回傳 JSON。`;
+    const questionLevelInstruction = `題目層次分配如下：
+        - 第 1 題：**擷取與檢索** (從文本單一或多個段落中去找出明確訊息)。
+        - 第 2、3 題：**統整與解釋** (歸納段落主旨、理解代名詞所指、推論作者未明言的觀點)。
+        - 第 4、5 題：**省思與評鑑** (評估文章寫作手法、將文本資訊應用於新情境、或比較不同觀點)。`;
+
+    const prompt = `你是一位專為台灣國中生出題的資深國文科教研專家，請根據以下文本設計一份 5 題的素養導向閱讀測驗。
+文本標題：《${title}》
+文本內容：
+${article}
+
+請遵循以下「試題設計極重要規範（務必嚴格遵守）」：
+1. 根據篇章，設計 5 道符合 PISA 閱讀素養三層次的單選題。
+2. **試題必須是客觀題，答案能直接或間接從文本中找到，絕不可出現『你認為』、『你覺得』等沒有標準答案的開放式問句。**
+3. **選項設計要求**：錯誤選項必須是「有意義的誘答選項」，反映學生常見的迷思概念（如：只看關鍵詞忽略上下文、混淆因果與相關、過度推論、斷章取義等）。四個選項的長度與結構應盡量一致。正確答案在四個選項中的位置必須隨機分布（0, 1, 2, 3 不可固定）。
+4. ${questionLevelInstruction}
+5. **答題解析要求**：每題的 explanation 必須清晰嚴謹：(1) 明確指出正解在原文中的根據。(2) 逐一解釋其他三個誘答選項為何錯誤（例如：A 選項過度推論、B 選項張冠李戴、C 選項與原文第一段矛盾）。
+6. 請嚴格按照指定的 JSON 格式輸出，不要包含 JSON 格式以外的任何文字。`;
     const schema = {
         type: "OBJECT",
         properties: {

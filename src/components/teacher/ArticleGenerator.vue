@@ -131,14 +131,14 @@
         class="flex-grow btn-primary py-4 font-bold text-lg flex items-center justify-center gap-3 disabled:opacity-50"
       >
         <span v-if="loading" class="loader-sm w-5 h-5 border-4 border-white/20 border-t-white rounded-full animate-spin"></span>
-        {{ loading ? 'AI 書僮正在研磨墨寶...' : (mode === 'ai' ? '啟動 AI 起草' : '分析文章內容') }}
+        {{ loading ? 'AI 書僮正在研磨草稿...' : '產生初稿' }}
       </button>
       
       <template v-else>
          <button @click="resetGenerator" class="btn-secondary px-6 font-bold">重新設定</button>
          <button @click="saveAssignment" :disabled="saving" class="flex-grow btn-teal py-4 font-bold text-lg flex items-center justify-center gap-3">
             <span v-if="saving" class="loader-sm w-5 h-5 border-4 border-white/20 border-t-white rounded-full animate-spin"></span>
-            {{ saving ? '正在刻錄卷軸...' : '確認發佈此篇章' }}
+            {{ saving ? '書僮正在出題並刻錄卷軸...' : '確認無誤，出題並發佈！' }}
          </button>
       </template>
     </div>
@@ -146,19 +146,19 @@
     <!-- AI Refine Input Modal -->
     <div v-if="showAiRefineModal" class="fixed inset-0 z-[300] flex items-center justify-center p-4">
       <div class="fixed inset-0 bg-slate-900/80 backdrop-blur-md" @click="showAiRefineModal = false"></div>
-      <div class="relative z-10 bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-indigo-100 flex flex-col">
-         <div class="bg-indigo-600 px-6 py-5 flex justify-between items-center shrink-0 shadow-lg">
+      <div class="relative z-10 bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-red-100 flex flex-col">
+         <div class="bg-red-800 px-6 py-5 flex justify-between items-center shrink-0 shadow-lg">
             <h4 class="text-white font-black flex items-center gap-2">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
               AI 智能編修：原文正文
             </h4>
-            <button @click="showAiRefineModal = false" class="text-indigo-200 hover:text-white transition-colors">
+            <button @click="showAiRefineModal = false" class="text-red-200 hover:text-white transition-colors">
                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
          </div>
          <div class="p-6 space-y-5">
-            <div class="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
-               <p class="text-xs text-indigo-800 leading-relaxed font-bold italic">
+            <div class="p-4 bg-amber-50/50 rounded-2xl border border-amber-100/50">
+               <p class="text-xs text-amber-800 leading-relaxed font-bold italic">
                  「夫子，請告知書僮您對內容的修訂原委，書僮定當竭力達成。」
                </p>
             </div>
@@ -169,7 +169,7 @@
          </div>
          <div class="px-6 py-5 bg-slate-50 border-t flex gap-4 shrink-0">
             <button @click="showAiRefineModal = false" class="btn-secondary flex-1 py-3 text-sm font-bold">先等等</button>
-            <button @click="handleAIRefine" :disabled="refiningAI" class="btn-primary flex-[2] py-3 text-sm font-black shadow-indigo-200 shadow-lg flex justify-center items-center gap-2">
+            <button @click="handleAIRefine" :disabled="refiningAI" class="btn-primary flex-[2] py-3 text-sm font-black shadow-red-200 shadow-lg flex justify-center items-center gap-2">
               <span v-if="refiningAI" class="loader-sm w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
               {{ refiningAI ? '書僮運筆研墨中...' : '確認編修' }}
             </button>
@@ -313,31 +313,19 @@ const handleMainAction = async () => {
   if (isActionDisabled.value) return
   loading.value = true
   try {
-    let resultData = null
-    
     if (mode.value === 'ai') {
-      resultData = await generateAssignmentFromTopic(topic.value, tags)
+      const draftResult = await generateAssignmentFromTopic(topic.value, tags)
+      generatedResult.value = draftResult // Only contains title, article, tags
     } else {
-      loading.value = true // Ensure loading state
-      const questionsAndTags = await generateQuestionsFromText(pastedTitle.value, pastedContent.value, tags)
-      resultData = {
+      generatedResult.value = {
         title: pastedTitle.value,
         article: pastedContent.value,
-        ...questionsAndTags
+        tags: { ...tags }
       }
-    }
-    
-    // 生成解析與心智圖
-    const analysis = await generateFullAnalysis(resultData.article)
-    
-    generatedResult.value = {
-      ...resultData,
-      analysis,
-      tags: { ...resultData.tags }
     }
   } catch (err) {
     console.error('AI Processing Error:', err)
-    alert('AI 書僮遺墨了，請稍後再試：' + err.message)
+    alert('AI 書僮草擬文章失敗：' + err.message)
   } finally {
     loading.value = false
   }
@@ -360,13 +348,23 @@ const saveAssignment = async () => {
   if (!generatedResult.value) return
   saving.value = true
   try {
+    // 1. 根據使用者最終校訂的文章內容來出題
+    const questionsResponse = await generateQuestionsFromText(
+      generatedResult.value.title, 
+      generatedResult.value.article, 
+      generatedResult.value.tags
+    )
+    
+    // 2. 根據最終內容生成解析
+    const analysis = await generateFullAnalysis(generatedResult.value.article)
+
     const authStore = useAuthStore()
     const payload = {
       title: generatedResult.value.title,
       article: generatedResult.value.article,
-      questions: generatedResult.value.questions,
+      questions: questionsResponse.questions, // Store the newly generated questions here
       tags: generatedResult.value.tags,
-      analysis: generatedResult.value.analysis,
+      analysis: analysis,
       isPublic: isPublic.value,
       deadline: deadline.value ? Timestamp.fromDate(new Date(deadline.value + "T23:59:59")) : null,
       createdAt: Timestamp.now(),
@@ -378,12 +376,12 @@ const saveAssignment = async () => {
     // 成功發佈後清除草稿
     clearDraft()
     
-    alert('成功發佈新篇章！')
+    alert('成功發佈新篇章！出題與相關解析皆已備妥。')
     emit('close')
     emit('success')
   } catch (err) {
     console.error('Save Error:', err)
-    alert('存檔失敗：' + err.message)
+    alert('存檔失敗\n若為出題或解析發生錯誤，可以修改後再次嘗試發布：' + err.message)
   } finally {
     saving.value = false
   }
