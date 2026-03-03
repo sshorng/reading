@@ -88,7 +88,7 @@
             <!-- Analysis Section (More Compact) -->
             <section class="space-y-6 pt-6 border-t border-slate-100">
               <h4 class="font-black text-slate-800 text-sm flex items-center gap-2">
-                <span class="w-1.5 h-4 bg-red-400 rounded-full"></span>
+                <span class="w-1.5 h-4 bg-red-800 rounded-full"></span>
                 深度解析與導引
               </h4>
 
@@ -116,9 +116,9 @@
                 <div class="space-y-1">
                   <div class="flex justify-between items-center px-1">
                     <label class="text-[10px] font-black text-slate-400 uppercase font-mono">Mermaid 結構語法</label>
-                    <button @click="handleRegenerateSingle('mindmap')" class="text-[10px] text-emerald-800/60 hover:text-emerald-800 font-bold">重新生成</button>
+                    <button @click="handleRegenerateSingle('mindmap')" class="text-[10px] text-teal-800/60 hover:text-teal-800 font-bold">重新生成</button>
                   </div>
-                  <textarea v-model="form.analysis.mindmap" rows="4" class="input-styled w-full text-[10px] font-mono bg-slate-900 text-emerald-400 custom-scrollbar"></textarea>
+                  <textarea v-model="form.analysis.mindmap" rows="4" class="input-styled w-full text-[10px] font-mono bg-slate-900 text-teal-400 custom-scrollbar"></textarea>
                 </div>
               </div>
             </section>
@@ -130,7 +130,7 @@
           <!-- Toolbar -->
           <div class="px-8 py-4 bg-white/50 border-b border-slate-200 flex justify-between items-center shrink-0">
              <h4 class="font-black text-slate-800 text-sm flex items-center gap-2">
-              <span class="w-1.5 h-4 bg-amber-500 rounded-full"></span>
+              <span class="w-1.5 h-4 bg-amber-700 rounded-full"></span>
               試卷題目細校 (共 {{ form.questions.length }} 題)
             </h4>
             <div class="flex gap-3">
@@ -171,9 +171,9 @@
                   </div>
                   <div class="flex items-center gap-4">
                     <button @click="handleRegenerateQuestions(true, idx)" :disabled="regeneratingIndices.has(idx)" class="text-[10px] bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-600 hover:text-white font-black transition-all">重新出此題</button>
-                    <div class="flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100">
-                      <span class="text-[10px] font-black text-emerald-800">正確答案：</span>
-                      <select v-model="q.correctAnswerIndex" class="bg-transparent text-sm font-black text-emerald-800 p-0 border-none focus:ring-0 cursor-pointer">
+                    <div class="flex items-center gap-2 bg-teal-50 px-3 py-1.5 rounded-xl border border-teal-100">
+                      <span class="text-[10px] font-black text-teal-800">正確答案：</span>
+                      <select v-model="q.correctAnswerIndex" class="bg-transparent text-sm font-black text-teal-800 p-0 border-none focus:ring-0 cursor-pointer">
                         <option v-for="optI in [0,1,2,3]" :key="optI" :value="optI">{{ String.fromCharCode(65+optI) }}</option>
                       </select>
                     </div>

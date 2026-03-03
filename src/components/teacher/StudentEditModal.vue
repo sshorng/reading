@@ -32,11 +32,11 @@
           <label class="flex items-center gap-3 cursor-pointer group">
             <div class="relative flex items-center">
               <input type="checkbox" v-model="form.isExempted" class="peer sr-only">
-              <div class="w-10 h-5 bg-slate-200 rounded-full peer peer-checked:bg-emerald-500 transition-colors"></div>
+              <div class="w-10 h-5 bg-slate-200 rounded-full peer peer-checked:bg-teal-700 transition-colors"></div>
               <div class="absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform peer-checked:translate-x-5 shadow-sm"></div>
             </div>
             <div class="flex flex-col">
-              <span class="text-sm font-bold text-slate-700 group-hover:text-emerald-700 transition-colors">暫停考核 (免修生)</span>
+              <span class="text-sm font-bold text-slate-700 group-hover:text-teal-700 transition-colors">暫停考核 (免修生)</span>
               <span class="text-[10px] text-slate-400">開啟後不再列入逾期催收名單</span>
             </div>
           </label>

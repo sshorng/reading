@@ -2,17 +2,17 @@
   <div class="animate-fade-in pb-12">
     <!-- Achievement Stats Overview -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-      <div class="card bg-orange-50/50 border-orange-100 shadow-sm flex flex-col items-center justify-center p-5">
-        <h3 class="text-xs font-black text-orange-800/40 uppercase tracking-widest mb-1">功成名就 (解鎖)</h3>
-        <p class="text-3xl lg:text-4xl font-black text-orange-600">{{ unlockedAchievements.length }} <span class="text-sm font-normal">座</span></p>
+      <div class="card bg-stone-50/50 border-stone-200 shadow-sm flex flex-col items-center justify-center p-5">
+        <h3 class="text-xs font-black text-stone-500 uppercase tracking-widest mb-1">功成名就 (解鎖)</h3>
+        <p class="text-3xl lg:text-4xl font-black text-stone-800">{{ unlockedAchievements.length }} <span class="text-sm font-normal">座</span></p>
       </div>
-      <div class="card bg-emerald-50/50 border-emerald-100 shadow-sm flex flex-col items-center justify-center p-5">
-        <h3 class="text-xs font-black text-emerald-800/40 uppercase tracking-widest mb-1">未成之志 (待解鎖)</h3>
-        <p class="text-3xl lg:text-4xl font-black text-emerald-600">{{ lockedAchievements.length }} <span class="text-sm font-normal">座</span></p>
+      <div class="card bg-slate-50/50 border-slate-200 shadow-sm flex flex-col items-center justify-center p-5">
+        <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-1">未成之志 (待解鎖)</h3>
+        <p class="text-3xl lg:text-4xl font-black text-slate-600">{{ lockedAchievements.length }} <span class="text-sm font-normal">座</span></p>
       </div>
-      <div class="card bg-rose-50/50 border-rose-100 shadow-sm flex flex-col items-center justify-center p-5">
-        <h3 class="text-xs font-black text-rose-800/40 uppercase tracking-widest mb-1">目前位階</h3>
-        <p class="text-2xl lg:text-3xl font-black text-rose-800">{{ currentRank }}</p>
+      <div class="card bg-red-50/50 border-red-100 shadow-sm flex flex-col items-center justify-center p-5">
+        <h3 class="text-xs font-black text-red-800/60 uppercase tracking-widest mb-1">目前位階</h3>
+        <p class="text-2xl lg:text-3xl font-black text-red-800">{{ currentRank }}</p>
       </div>
     </div>
 
@@ -73,8 +73,8 @@
                     <span>{{ getConditionLabel(ach.conditions[0]?.type) }}</span>
                     <span>{{ ach.currentValue }} / {{ ach.targetValue }} ({{ ach.progress }}%)</span>
                 </div>
-                <div class="h-2 bg-slate-100 rounded-full overflow-hidden shadow-inner">
-                    <div class="h-full bg-gradient-to-r from-teal-400 to-emerald-500 rounded-full transition-all duration-1000" :style="{ width: `${ach.progress}%` }"></div>
+                <div class="h-2 bg-slate-200 rounded-full overflow-hidden shadow-inner">
+                    <div class="h-full bg-gradient-to-r from-stone-600 to-stone-800 rounded-full transition-all duration-1000" :style="{ width: `${ach.progress}%` }"></div>
                 </div>
             </div>
             
@@ -168,13 +168,18 @@ const getConditionLabel = (type) => {
 }
 
 const getCategoryColorClass = (label, bgOnly = false) => {
-  if (!label) return bgOnly ? 'bg-slate-300' : 'border-l-slate-300'
-  if (label.includes('基礎與廣度')) return bgOnly ? 'bg-emerald-400' : 'border-l-emerald-400 hover:border-emerald-500'
-  if (label.includes('精準與品質')) return bgOnly ? 'bg-amber-400' : 'border-l-amber-400 hover:border-amber-500'
-  if (label.includes('毅力與重修')) return bgOnly ? 'bg-rose-400' : 'border-l-rose-400 hover:border-rose-500'
-  if (label.includes('恆心與進階')) return bgOnly ? 'bg-blue-400' : 'border-l-blue-400 hover:border-blue-500'
-  if (label.includes('效率與作息')) return bgOnly ? 'bg-purple-400' : 'border-l-purple-400 hover:border-purple-500'
-  return bgOnly ? 'bg-slate-300' : 'border-l-slate-300'
+  if (!label) return bgOnly ? 'bg-stone-300' : 'border-l-stone-300'
+  // 青玉 (Jade/Teal)
+  if (label.includes('基礎與廣度')) return bgOnly ? 'bg-teal-700' : 'border-l-teal-700 hover:border-teal-800'
+  // 丹金 (Bronze/Amber)
+  if (label.includes('精準與品質')) return bgOnly ? 'bg-amber-700' : 'border-l-amber-700 hover:border-amber-800'
+  // 絳紅 (Crimson/Theme Red)
+  if (label.includes('毅力與重修')) return bgOnly ? 'bg-red-800' : 'border-l-red-800 hover:border-red-900'
+  // 點墨 (Ink/Slate)
+  if (label.includes('恆心與進階')) return bgOnly ? 'bg-slate-700' : 'border-l-slate-700 hover:border-slate-800'
+  // 琉璃 (Indigo/Navy)
+  if (label.includes('效率與作息')) return bgOnly ? 'bg-indigo-800' : 'border-l-indigo-800 hover:border-indigo-900'
+  return bgOnly ? 'bg-stone-300' : 'border-l-stone-300'
 }
 
 const getCategoryColorClassByCondition = (type) => {

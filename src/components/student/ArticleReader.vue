@@ -110,7 +110,7 @@
               <!-- History -->
               <div v-if="history.length > 0 && !isPassed" class="mb-6 p-5 bg-[#fdfbf7] border border-amber-100 rounded-2xl shadow-sm">
                   <h2 class="text-sm font-black text-amber-800 mb-3 flex items-center gap-2">
-                    <span class="w-1 h-3 bg-amber-400 rounded-full"></span>
+                    <span class="w-1 h-3 bg-amber-700 rounded-full"></span>
                     歷史挑戰記錄
                   </h2>
                   <ul class="space-y-2">
@@ -143,7 +143,7 @@
                     <p class="font-bold text-lg text-slate-800 flex gap-4 leading-snug">
                       <span class="text-amber-700/30 font-black italic text-2xl leading-none flex items-center gap-2">
                         {{ index + 1 }}
-                        <svg v-if="isQuestionLocked(index)" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="text-emerald-500 inline-block" viewBox="0 0 16 16">
+                        <svg v-if="isQuestionLocked(index)" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="text-teal-700 inline-block" viewBox="0 0 16 16">
                           <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
                         </svg>
                       </span>

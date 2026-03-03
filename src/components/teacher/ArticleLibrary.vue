@@ -139,9 +139,9 @@
                    </div>
                 </td>
                 <td class="px-3 py-4">
-                  <span :class="article.isPublic ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-400 border-slate-200'" 
+                  <span :class="article.isPublic ? 'bg-teal-50 text-teal-800 border-teal-200' : 'bg-slate-100 text-slate-400 border-slate-200'" 
                         class="px-2.5 py-1 text-xs font-bold rounded-lg border inline-flex items-center gap-1.5 whitespace-nowrap">
-                    <span :class="article.isPublic ? 'bg-emerald-500' : 'bg-slate-300'" class="w-1.5 h-1.5 rounded-full"></span>
+                    <span :class="article.isPublic ? 'bg-teal-700' : 'bg-slate-300'" class="w-1.5 h-1.5 rounded-full"></span>
                     {{ article.isPublic ? '公開' : '私密' }}
                   </span>
                 </td>

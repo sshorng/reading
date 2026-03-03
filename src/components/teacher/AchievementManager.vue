@@ -164,12 +164,18 @@ const getConditionLabel = (type) => {
 }
 
 const getCategoryColorClass = (label, bgOnly = false) => {
-  if (label.includes('基礎與廣度')) return bgOnly ? 'bg-emerald-400' : 'border-l-emerald-400 hover:border-emerald-500'
-  if (label.includes('精準與品質')) return bgOnly ? 'bg-amber-400' : 'border-l-amber-400 hover:border-amber-500'
-  if (label.includes('毅力與重修')) return bgOnly ? 'bg-rose-400' : 'border-l-rose-400 hover:border-rose-500'
-  if (label.includes('恆心與進階')) return bgOnly ? 'bg-blue-400' : 'border-l-blue-400 hover:border-blue-500'
-  if (label.includes('效率與作息')) return bgOnly ? 'bg-purple-400' : 'border-l-purple-400 hover:border-purple-500'
-  return bgOnly ? 'bg-slate-300' : 'border-l-slate-300'
+  if (!label) return bgOnly ? 'bg-stone-300' : 'border-l-stone-300'
+  // 青玉 (Jade/Teal)
+  if (label.includes('基礎與廣度')) return bgOnly ? 'bg-teal-700' : 'border-l-teal-700 hover:border-teal-800'
+  // 丹金 (Bronze/Amber)
+  if (label.includes('精準與品質')) return bgOnly ? 'bg-amber-700' : 'border-l-amber-700 hover:border-amber-800'
+  // 絳紅 (Crimson/Theme Red)
+  if (label.includes('毅力與重修')) return bgOnly ? 'bg-red-800' : 'border-l-red-800 hover:border-red-900'
+  // 點墨 (Ink/Slate)
+  if (label.includes('恆心與進階')) return bgOnly ? 'bg-slate-700' : 'border-l-slate-700 hover:border-slate-800'
+  // 琉璃 (Indigo/Navy)
+  if (label.includes('效率與作息')) return bgOnly ? 'bg-indigo-800' : 'border-l-indigo-800 hover:border-indigo-900'
+  return bgOnly ? 'bg-stone-300' : 'border-l-stone-300'
 }
 
 const getCategoryColorClassByCondition = (type) => {

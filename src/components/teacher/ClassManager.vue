@@ -126,7 +126,7 @@
              </div>
              
              <div v-for="stu in overdueData" :key="stu.id" class="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-white border border-rose-100 rounded-xl shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-               <div class="absolute top-0 left-0 w-1 h-full bg-rose-500"></div>
+               <div class="absolute top-0 left-0 w-1 h-full bg-red-800"></div>
                
                <!-- 學生資訊區 -->
                <div class="flex items-center gap-3 mb-3 md:mb-0 w-full md:w-48 shrink-0">
