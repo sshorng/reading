@@ -135,14 +135,14 @@
                <div class="space-y-4">
                   <h4 class="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] flex items-center gap-3">
                     <span class="h-px bg-slate-100 flex-grow"></span>
-                    末次挑戰答題詳情
+                    初次挑戰答題詳情
                     <span class="h-px bg-slate-100 flex-grow"></span>
                   </h4>
                   
                   <div v-for="(q, i) in assignment?.questions" :key="i" 
                        :class="[
                          'p-6 rounded-2xl border relative overflow-hidden',
-                         (selectedSubmission.attempts && selectedSubmission.attempts.length > 0 ? selectedSubmission.attempts[selectedSubmission.attempts.length-1].answers[i] : selectedSubmission.answers[i]) === q.correctAnswerIndex 
+                         (selectedSubmission.attempts && selectedSubmission.attempts.length > 0 ? selectedSubmission.attempts[0].answers[i] : selectedSubmission.answers[i]) === q.correctAnswerIndex 
                          ? 'bg-teal-50 border-teal-200' : 'bg-rose-50 border-rose-200'
                        ]">
                     <!-- Subtle background indicator removed -->
@@ -152,7 +152,7 @@
                         <span class="shrink-0 w-8 h-8 rounded-lg bg-white/80 shadow-sm border border-slate-100 flex items-center justify-center font-black text-slate-400 text-sm">{{ i + 1 }}</span>
                         <p class="font-bold text-slate-800 text-base leading-relaxed pt-1">{{ q.questionText }}</p>
                       </div>
-                      <span v-if="(selectedSubmission.attempts && selectedSubmission.attempts.length > 0 ? selectedSubmission.attempts[selectedSubmission.attempts.length-1].answers[i] : selectedSubmission.answers[i]) === q.correctAnswerIndex" 
+                      <span v-if="(selectedSubmission.attempts && selectedSubmission.attempts.length > 0 ? selectedSubmission.attempts[0].answers[i] : selectedSubmission.answers[i]) === q.correctAnswerIndex" 
                             class="text-teal-600 font-black text-[10px] bg-white/90 px-3 py-1 rounded-full border border-teal-100 shadow-sm shrink-0 ml-4 uppercase tracking-widest">正解</span>
                       <span v-else class="text-rose-600 font-black text-[10px] bg-white/90 px-3 py-1 rounded-full border border-rose-100 shadow-sm shrink-0 ml-4 uppercase tracking-widest">誤選</span>
                     </div>
@@ -162,9 +162,9 @@
                         <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">學子選擇</span>
                         <span :class="[
                           'font-black text-base',
-                          (selectedSubmission.attempts && selectedSubmission.attempts.length > 0 ? selectedSubmission.attempts[selectedSubmission.attempts.length-1].answers[i] : selectedSubmission.answers[i]) === q.correctAnswerIndex ? 'text-teal-700' : 'text-rose-700'
+                          (selectedSubmission.attempts && selectedSubmission.attempts.length > 0 ? selectedSubmission.attempts[0].answers[i] : selectedSubmission.answers[i]) === q.correctAnswerIndex ? 'text-teal-700' : 'text-rose-700'
                         ]">
-                          {{ (selectedSubmission.attempts && selectedSubmission.attempts.length > 0 ? selectedSubmission.attempts[selectedSubmission.attempts.length-1].answers[i] : selectedSubmission.answers[i]) !== null ? q.options[(selectedSubmission.attempts && selectedSubmission.attempts.length > 0 ? selectedSubmission.attempts[selectedSubmission.attempts.length-1].answers[i] : selectedSubmission.answers[i])] : '未作答' }}
+                          {{ (selectedSubmission.attempts && selectedSubmission.attempts.length > 0 ? selectedSubmission.attempts[0].answers[i] : selectedSubmission.answers[i]) !== null ? q.options[(selectedSubmission.attempts && selectedSubmission.attempts.length > 0 ? selectedSubmission.attempts[0].answers[i] : selectedSubmission.answers[i])] : '未作答' }}
                         </span>
                       </div>
                       <div class="text-sm bg-white/80 p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col gap-1">
