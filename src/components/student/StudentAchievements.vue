@@ -42,17 +42,20 @@
                   'text-4xl flex-shrink-0',
                   ach.isUnlocked ? '' : 'filter grayscale opacity-50'
                 ]">
-                {{ ach.icon || '🏆' }}
+                <template v-if="!ach.isUnlocked && ach.isHidden">❓</template>
+                <template v-else>{{ ach.icon || '🏆' }}</template>
               </div>
               
               <div class="flex-grow min-w-0 z-10 pt-1">
                 <h3 class="font-bold text-base text-gray-800">
-                    {{ ach.name }}
+                    {{ (!ach.isUnlocked && ach.isHidden) ? '神祕成就' : ach.name }}
                     <span v-if="ach.isUnlocked && ach.unlockCount > 1" class="ml-2 text-xs text-amber-600 font-bold">×{{ ach.unlockCount }}</span>
                 </h3>
-                <p class="text-xs text-gray-500 mt-0.5 leading-snug">{{ ach.description }}</p>
+                <p class="text-xs text-gray-500 mt-0.5 leading-snug">
+                    {{ (!ach.isUnlocked && ach.isHidden) ? '此成就在解鎖前保持神祕，請繼續努力修業！' : ach.description }}
+                </p>
                 
-                <div v-if="!ach.isUnlocked && ach.progress !== undefined" class="mt-3">
+                <div v-if="!ach.isUnlocked && ach.progress !== undefined && !ach.isHidden" class="mt-3">
                     <div class="flex justify-between items-center text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-1">
                         <span>{{ ach.currentValue }} / {{ ach.targetValue }}</span>
                         <span>{{ ach.progress }}%</span>
