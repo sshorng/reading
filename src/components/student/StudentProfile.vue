@@ -371,9 +371,12 @@ const sortedSubmissions = computed(() => {
     }
     return sub
   }).sort((a, b) => {
-    const timeA = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : new Date(a.updatedAt || 0).getTime()
-    const timeB = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : new Date(b.updatedAt || 0).getTime()
-    return timeB - timeA
+    // 優先使用 updatedAt，若無則依序嘗試末次、初次或任何時間戳記
+    const getTime = (s) => {
+      const ts = s.updatedAt || s.lastSubmittedAt || s.submittedAt || 0;
+      return ts.toMillis ? ts.toMillis() : new Date(ts).getTime();
+    };
+    return getTime(b) - getTime(a);
   })
 })
 

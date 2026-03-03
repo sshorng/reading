@@ -99,7 +99,11 @@
                   <div>
                     <h2 class="text-sm font-black text-slate-800">修業完成</h2>
                     <p class="text-slate-500 text-xs leading-none mt-1">
-                      最高得分 <span class="font-black text-red-700">{{ highestScore }}</span>
+                      初次得分 <span class="font-black text-red-700">{{ firstScore }}</span>
+                      <template v-if="subsequentScores.length > 0">
+                        <span class="mx-2 text-slate-300">|</span>
+                        後續: <span class="font-bold text-slate-600">{{ subsequentScores.join(', ') }}</span>
+                      </template>
                       <span class="mx-2 text-slate-300">|</span>
                       <span class="text-teal-600 font-bold">墨寶已存，您可查閱深度解析。</span>
                     </p>
@@ -381,6 +385,8 @@ const history = computed(() => {
   if (!sub) return [];
   return sub.attempts || [{ score: sub.score, answers: sub.answers, submittedAt: sub.submittedAt, durationSeconds: sub.durationSeconds }];
 })
+const firstScore = computed(() => history.value.length ? history.value[0].score : 0)
+const subsequentScores = computed(() => history.value.length > 1 ? history.value.slice(1).map(h => h.score) : [])
 const highestScore = computed(() => history.value.length ? Math.max(...history.value.map(h => h.score || 0)) : 0)
 const isPassed = computed(() => highestScore.value >= 60)
 const isCompleted = computed(() => history.value.length > 0)
@@ -425,9 +431,9 @@ const requestAiHelp = async () => {
 
 const submitButtonText = computed(() => {
   if (isPassed.value) {
-    return highestScore.value < 100 ? `再次挑戰，追求滿分 (前次：${highestScore.value})` : '已臻滿分';
+    return highestScore.value < 100 ? `再次挑戰，追求滿分 (初次：${firstScore.value}${subsequentScores.value.length ? ' / 續: ' + subsequentScores.value.join(', ') : ''})` : '已臻滿分';
   }
-  return isCompleted.value ? `再次挑戰 (前次最高分：${highestScore.value})` : '繳交課卷';
+  return isCompleted.value ? `再次挑戰 (初次：${firstScore.value}${subsequentScores.value.length ? ' / 續: ' + subsequentScores.value.join(', ') : ''})` : '繳交課卷';
 })
 
 // UI Handlers
