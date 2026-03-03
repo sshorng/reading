@@ -620,6 +620,20 @@ select.form-element-ink {
 }
 
 /* --- Flowchart Theming --- */
+.mermaid {
+    overflow: auto !important;
+    max-width: 100% !important;
+    display: flex;
+    justify-content: center;
+}
+
+.mermaid svg {
+    max-width: 100% !important;
+    max-height: 400px !important;
+    height: auto !important;
+    width: auto !important;
+}
+
 .mermaid .node rect,
 .mermaid .node circle,
 .mermaid .node polygon {
