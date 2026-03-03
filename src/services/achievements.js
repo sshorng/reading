@@ -75,7 +75,7 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
                     (subs || [])
                         .map(s => {
                             const assignment = allAssignments.find(a => a.id === s.assignmentId)
-                            return assignment?.contentType
+                            return assignment?.tags?.contentType
                         })
                         .filter(Boolean)
                 ).size
@@ -120,7 +120,7 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
                         const matchedSubs = studentSubmissions.filter(s => {
                             const assignment = allAssignments.find(a => a.id === s.assignmentId)
                             if (!assignment) return false
-                            return isContentType ? assignment.contentType === tag : assignment.difficulty === tag
+                            return isContentType ? assignment.tags?.contentType === tag : assignment.tags?.difficulty === tag
                         })
                         if (matchedSubs.length >= value) isMet = true
                     } else {

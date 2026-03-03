@@ -159,14 +159,14 @@ const calculateProgress = (ach) => {
         const tag = cond.type.replace('read_tag_contentType_', '')
         const relatedSubs = studentSubmissions.filter(s => {
             const assignment = allAssignmentsCache.value.find(a => a.id === s.assignmentId)
-            return assignment && assignment.contentType === tag
+            return assignment && assignment.tags?.contentType === tag
         })
         current = relatedSubs.length
     } else if (cond.type.startsWith('read_tag_difficulty_')) {
         const tag = cond.type.replace('read_tag_difficulty_', '')
         const relatedSubs = studentSubmissions.filter(s => {
             const assignment = allAssignmentsCache.value.find(a => a.id === s.assignmentId)
-            return assignment && assignment.difficulty === tag
+            return assignment && assignment.tags?.difficulty === tag
         })
         current = relatedSubs.length
     } else if (cond.type === 'login_streak') {
@@ -180,7 +180,7 @@ const calculateProgress = (ach) => {
             studentSubmissions
                 .map(s => {
                     const assignment = allAssignmentsCache.value.find(a => a.id === s.assignmentId)
-                    return assignment?.contentType
+                    return assignment?.tags?.contentType
                 })
                 .filter(Boolean)
         )
