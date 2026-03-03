@@ -145,52 +145,72 @@ const achievementCategories = computed(() => {
 
 const calculateProgress = (ach) => {
     if (!ach.conditions || ach.conditions.length === 0) return {}
-    // Simplified: check the first condition
     const cond = ach.conditions[0]
     const studentSubmissions = dataStore.allSubmissions.filter(s => s.studentId === authStore.currentUser?.studentId)
-    
-    let current = 0
-    if (cond.type === 'submission_count') {
-        current = studentSubmissions.length
-    } else if (cond.type === 'average_score') {
-        if (studentSubmissions.length === 0) current = 0
-        else {
-            const scores = studentSubmissions.map(s => s.attempts?.length ? Math.max(...s.attempts.map(a => a.score)) : (s.score || 0))
-            current = Math.round(scores.reduce((a,b) => a+b, 0) / scores.length)
+    const allAssig = allAssignmentsCache.value
+
+    // == 1. 統一前處理增強數據 (與 backend 一致) ==
+    const enhancedSubs = studentSubmissions.map(s => {
+        const assignment = allAssig.find(a => a.id === s.assignmentId) || {}
+        const attempts = s.attempts || []
+        const firstAttempt = attempts.length > 0 ? attempts[0] : s
+        const firstScore = firstAttempt.score || 0
+        const bestScore = attempts.length > 0 ? Math.max(...attempts.map(a => a.score)) : (s.score || 0)
+        const retryCount = Math.max(0, attempts.length - 1)
+        const firstPassedAttempt = attempts.find(a => a.score >= 60)
+        const passedDuration = firstPassedAttempt ? (firstPassedAttempt.durationSeconds || s.durationSeconds || 0) : (s.durationSeconds || 0)
+
+        let daysEarly = 0
+        let subDateObj = new Date()
+        if (s.submittedAt) {
+            subDateObj = s.submittedAt.toDate ? s.submittedAt.toDate() : new Date(s.submittedAt)
+            if (assignment.dueDate) {
+                const due = typeof assignment.dueDate === 'string' ? new Date(assignment.dueDate) : (assignment.dueDate.toDate ? assignment.dueDate.toDate() : new Date())
+                daysEarly = (due - subDateObj) / (1000 * 60 * 60 * 24)
+            }
         }
-    } else if (cond.type.startsWith('read_tag_contentType_')) {
-        const tag = cond.type.replace('read_tag_contentType_', '')
-        const relatedSubs = studentSubmissions.filter(s => {
-            const assignment = allAssignmentsCache.value.find(a => a.id === s.assignmentId)
-            return assignment && assignment.tags?.contentType === tag
-        })
-        current = relatedSubs.length
-    } else if (cond.type.startsWith('read_tag_difficulty_')) {
-        const tag = cond.type.replace('read_tag_difficulty_', '')
-        const relatedSubs = studentSubmissions.filter(s => {
-            const assignment = allAssignmentsCache.value.find(a => a.id === s.assignmentId)
-            return assignment && assignment.tags?.difficulty === tag
-        })
-        current = relatedSubs.length
-    } else if (cond.type === 'login_streak') {
-        current = authStore.currentUser?.loginStreak || 0
-    } else if (cond.type === 'high_score_streak') {
-        current = authStore.currentUser?.highScoreStreak || 0
-    } else if (cond.type === 'completion_streak') {
-        current = authStore.currentUser?.completionStreak || 0
-    } else if (cond.type === 'genre_explorer') {
-        const uniqueGenres = new Set(
-            studentSubmissions
-                .map(s => {
-                    const assignment = allAssignmentsCache.value.find(a => a.id === s.assignmentId)
-                    return assignment?.tags?.contentType
-                })
-                .filter(Boolean)
-        )
-        current = uniqueGenres.size
+        const hour = subDateObj.getHours()
+        const isOffHours = hour >= 23 || hour <= 4
+
+        return { ...s, assignment, firstScore, bestScore, retryCount, passedDuration, daysEarly, isOffHours, subDateObj }
+    })
+
+    const val = parseInt(cond.value, 10) || 1
+    let current = 0
+    let target = val
+
+    // == 2. 策略計算 ==
+    const type = cond.type
+    if (type === 'submission_count') current = enhancedSubs.length
+    else if (type === 'genre_explorer') current = new Set(enhancedSubs.map(s => s.assignment?.tags?.contentType).filter(Boolean)).size
+    else if (type === 'unique_formats_read') current = new Set(enhancedSubs.map(s => s.assignment?.tags?.format || '預設').filter(Boolean)).size
+    else if (type === 'high_score_streak') current = authStore.currentUser?.highScoreStreak || 0
+    else if (type === 'average_score') current = enhancedSubs.length > 0 ? Math.round(enhancedSubs.reduce((acc, s) => acc + s.firstScore, 0) / enhancedSubs.length) : 0
+    else if (type === 'first_try_min_score') { target = 1; current = enhancedSubs.filter(s => s.firstScore >= val).length }
+    else if (type === 'perfect_score_count') current = enhancedSubs.filter(s => s.bestScore >= 100).length
+    else if (type === 'recovery_count') current = enhancedSubs.filter(s => s.firstScore < 60 && s.bestScore >= 100).length
+    else if (type === 'min_retry_count') { target = 1; current = enhancedSubs.filter(s => s.retryCount >= val && s.bestScore >= 60).length }
+    else if (type === 'login_streak') current = authStore.currentUser?.loginStreak || 0
+    else if (type === 'completion_streak') current = authStore.currentUser?.completionStreak || 0
+    else if (type === 'weekly_progress') {
+        const now = new Date()
+        const startOfThisWeek = new Date(now); startOfThisWeek.setDate(now.getDate() - now.getDay()); startOfThisWeek.setHours(0,0,0,0)
+        const startOfLastWeek = new Date(startOfThisWeek.getTime() - 7 * 86400000)
+        const startOfPrevWeek = new Date(startOfLastWeek.getTime() - 7 * 86400000)
+        const lwTotal = enhancedSubs.filter(s => s.subDateObj >= startOfLastWeek && s.subDateObj < startOfThisWeek).reduce((sum, s) => sum + s.firstScore, 0)
+        const pwTotal = enhancedSubs.filter(s => s.subDateObj >= startOfPrevWeek && s.subDateObj < startOfLastWeek).reduce((sum, s) => sum + s.firstScore, 0)
+        target = 1; current = (lwTotal > 0 && lwTotal > pwTotal) ? 1 : 0
     }
-    
-    const target = cond.value || 1
+    else if (type === 'speed_under_seconds') { target = 1; current = enhancedSubs.filter(s => s.passedDuration > 0 && s.passedDuration <= val && s.bestScore >= 60).length }
+    else if (type === 'duration_over_seconds') { target = 1; current = enhancedSubs.filter(s => s.passedDuration >= val && s.bestScore >= 60).length }
+    else if (type === 'days_before_deadline') { target = 1; current = enhancedSubs.filter(s => s.daysEarly >= val).length }
+    else if (type === 'off_hours_count') current = enhancedSubs.filter(s => s.isOffHours).length
+    else if (type && type.startsWith('read_tag_')) {
+        const isContentType = type.startsWith('read_tag_contentType_')
+        const tag = type.replace(isContentType ? 'read_tag_contentType_' : 'read_tag_difficulty_', '')
+        current = enhancedSubs.filter(s => isContentType ? (s.assignment?.tags?.contentType === tag) : (s.assignment?.tags?.difficulty === tag)).length
+    }
+
     const progress = Math.min(100, Math.round((current / target) * 100))
     return { currentValue: current, targetValue: target, progress }
 }

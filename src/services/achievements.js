@@ -43,95 +43,94 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
 
     // 檢查單一條件
     async function checkSingleCondition(condition, sData, evType, subs, evData) {
-        let isMet = false
         const value = parseInt(condition.value, 10)
         if (condition.type !== 'weekly_progress' && isNaN(value)) return false
 
-        switch (condition.type) {
-            case 'submission_count':
-                if (subs && subs.length >= value) isMet = true
-                break
-            case 'login_streak':
-                if ((sData.loginStreak || 0) >= value) isMet = true
-                break
-            case 'high_score_streak':
-                if ((sData.highScoreStreak || 0) >= value) isMet = true
-                break
-            case 'completion_streak':
-                if ((sData.completionStreak || 0) >= value) isMet = true
-                break
-            case 'average_score':
-                if (subs && subs.length > 0) {
-                    const totalScore = subs.reduce((sum, s) => {
-                        const first = (s.attempts && s.attempts.length > 0) ? s.attempts[0].score : (s.score || 0)
-                        return sum + first
-                    }, 0)
-                    if ((totalScore / subs.length) >= value) isMet = true
-                }
-                break
-            case 'genre_explorer': {
-                const allAssignments = eventData.allAssignments || []
-                const completedGenres = new Set(
-                    (subs || [])
-                        .map(s => {
-                            const assignment = allAssignments.find(a => a.id === s.assignmentId)
-                            return assignment?.tags?.contentType
-                        })
-                        .filter(Boolean)
-                ).size
-                if (completedGenres >= value) isMet = true
-                break
-            }
-            case 'weekly_progress': {
-                const now = new Date()
-                const currentWeekId = getWeekId(now)
-                if (sData.lastProgressCheckWeekId === currentWeekId) break
-                // 更新 check 標記
-                const studentRef = doc(db, `classes/${sData.classId}/students`, studentId)
-                updateDoc(studentRef, { lastProgressCheckWeekId: currentWeekId }).catch(console.error)
-                const startOfThisWeek = getStartOfWeek(now)
-                const startOfLastWeek = new Date(startOfThisWeek.getTime() - 7 * 24 * 60 * 60 * 1000)
-                const endOfLastWeek = new Date(startOfThisWeek.getTime() - 1)
-                const startOfPrevWeek = new Date(startOfLastWeek.getTime() - 7 * 24 * 60 * 60 * 1000)
-                const endOfPrevWeek = new Date(startOfLastWeek.getTime() - 1)
-                const lastWeekSubs = subs.filter(s => {
-                    const d = s.submittedAt?.toDate ? s.submittedAt.toDate() : new Date(s.submittedAt)
-                    return d >= startOfLastWeek && d <= endOfLastWeek
-                })
-                const prevWeekSubs = subs.filter(s => {
-                    const d = s.submittedAt?.toDate ? s.submittedAt.toDate() : new Date(s.submittedAt)
-                    return d >= startOfPrevWeek && d <= endOfPrevWeek
-                })
-                const getFirst = (s) => (s.attempts && s.attempts.length > 0) ? s.attempts[0].score : (s.score || 0)
-                const lastWeekTotal = lastWeekSubs.reduce((sum, s) => sum + getFirst(s), 0)
-                const prevWeekTotal = prevWeekSubs.reduce((sum, s) => sum + getFirst(s), 0)
-                if (lastWeekTotal > 0 && lastWeekTotal > prevWeekTotal) isMet = true
-                break
-            }
-            default:
-                // read_tag_* 類別
-                if (condition.type && condition.type.startsWith('read_tag_')) {
-                    const isContentType = condition.type.startsWith('read_tag_contentType_')
-                    const isDifficulty = condition.type.startsWith('read_tag_difficulty_')
-                    const allAssignments = eventData.allAssignments || []
+        const allAssignments = evData.allAssignments || []
+        // == 預處理：統一增強版數據 ==
+        const enhancedSubs = (subs || []).map(s => {
+            const assignment = allAssignments.find(a => a.id === s.assignmentId) || {}
+            const attempts = s.attempts || []
+            const firstAttempt = attempts.length > 0 ? attempts[0] : s
 
-                    if (isContentType || isDifficulty) {
-                        const tag = condition.type.replace(isContentType ? 'read_tag_contentType_' : 'read_tag_difficulty_', '')
-                        const matchedSubs = studentSubmissions.filter(s => {
-                            const assignment = allAssignments.find(a => a.id === s.assignmentId)
-                            if (!assignment) return false
-                            return isContentType ? assignment.tags?.contentType === tag : assignment.tags?.difficulty === tag
-                        })
-                        if (matchedSubs.length >= value) isMet = true
-                    } else {
-                        const key = condition.type.replace('read_tag_', '')
-                        const tagCount = (studentData.tagReadCounts || {})[key] || 0
-                        if (tagCount >= value) isMet = true
-                    }
+            const firstScore = firstAttempt.score || 0
+            const bestScore = attempts.length > 0 ? Math.max(...attempts.map(a => a.score)) : (s.score || 0)
+            const retryCount = Math.max(0, attempts.length - 1)
+
+            const firstPassedAttempt = attempts.find(a => a.score >= 60)
+            const passedDuration = firstPassedAttempt ? (firstPassedAttempt.durationSeconds || s.durationSeconds || 0) : (s.durationSeconds || 0)
+
+            let daysEarly = 0
+            let subDateObj = new Date()
+            if (s.submittedAt) {
+                subDateObj = s.submittedAt.toDate ? s.submittedAt.toDate() : new Date(s.submittedAt)
+                if (assignment.dueDate) {
+                    const due = typeof assignment.dueDate === 'string' ? new Date(assignment.dueDate) : (assignment.dueDate.toDate ? assignment.dueDate.toDate() : new Date())
+                    daysEarly = (due - subDateObj) / (1000 * 60 * 60 * 24)
                 }
-                break
+            }
+
+            const hour = subDateObj.getHours()
+            const isOffHours = hour >= 23 || hour <= 4
+
+            return {
+                ...s, assignment, firstScore, bestScore, retryCount, passedDuration, daysEarly, isOffHours, subDateObj
+            }
+        })
+
+        const checkWeeklyProgress = () => {
+            const now = new Date()
+            const currentWeekId = getWeekId(now)
+            if (sData.lastProgressCheckWeekId === currentWeekId) return false
+            const studentRef = doc(db, `classes/${sData.classId}/students`, studentId)
+            updateDoc(studentRef, { lastProgressCheckWeekId: currentWeekId }).catch(console.error)
+
+            const startOfThisWeek = getStartOfWeek(now)
+            const startOfLastWeek = new Date(startOfThisWeek.getTime() - 7 * 24 * 60 * 60 * 1000)
+            const startOfPrevWeek = new Date(startOfLastWeek.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+            const lastWeekTotal = enhancedSubs.filter(s => s.subDateObj >= startOfLastWeek && s.subDateObj < startOfThisWeek).reduce((sum, s) => sum + s.firstScore, 0)
+            const prevWeekTotal = enhancedSubs.filter(s => s.subDateObj >= startOfPrevWeek && s.subDateObj < startOfLastWeek).reduce((sum, s) => sum + s.firstScore, 0)
+            return lastWeekTotal > 0 && lastWeekTotal > prevWeekTotal
         }
-        return isMet
+
+        // == 策略註冊表 (Strategy Map) ==
+        const STRATEGIES = {
+            // 維度一：基礎與廣度
+            'submission_count': () => enhancedSubs.length >= value,
+            'genre_explorer': () => new Set(enhancedSubs.map(s => s.assignment?.tags?.contentType).filter(Boolean)).size >= value,
+            'unique_formats_read': () => new Set(enhancedSubs.map(s => s.assignment?.tags?.format || '預設').filter(Boolean)).size >= value,
+
+            // 維度二：精準與品質
+            'high_score_streak': () => (sData.highScoreStreak || 0) >= value,
+            'average_score': () => enhancedSubs.length > 0 && (enhancedSubs.reduce((acc, s) => acc + s.firstScore, 0) / enhancedSubs.length) >= value,
+            'first_try_min_score': () => enhancedSubs.filter(s => s.firstScore >= value).length > 0,
+
+            // 維度三：毅力與重修
+            'perfect_score_count': () => enhancedSubs.filter(s => s.bestScore >= 100).length >= value,
+            'recovery_count': () => enhancedSubs.filter(s => s.firstScore < 60 && s.bestScore >= 100).length >= value,
+            'min_retry_count': () => enhancedSubs.filter(s => s.retryCount >= value && s.bestScore >= 60).length > 0,
+
+            // 維度四：恆心與進階
+            'login_streak': () => (sData.loginStreak || 0) >= value,
+            'completion_streak': () => (sData.completionStreak || 0) >= value,
+            'weekly_progress': () => checkWeeklyProgress(),
+
+            // 維度五：作答效率與作息
+            'speed_under_seconds': () => enhancedSubs.filter(s => s.passedDuration > 0 && s.passedDuration <= value && s.bestScore >= 60).length > 0,
+            'duration_over_seconds': () => enhancedSubs.filter(s => s.passedDuration >= value && s.bestScore >= 60).length > 0,
+            'days_before_deadline': () => enhancedSubs.filter(s => s.daysEarly >= value).length > 0,
+            'off_hours_count': () => enhancedSubs.filter(s => s.isOffHours).length >= value
+        }
+
+        if (condition.type.startsWith('read_tag_')) {
+            const isContentType = condition.type.startsWith('read_tag_contentType_')
+            const tag = condition.type.replace(isContentType ? 'read_tag_contentType_' : 'read_tag_difficulty_', '')
+            const count = enhancedSubs.filter(s => isContentType ? (s.assignment?.tags?.contentType === tag) : (s.assignment?.tags?.difficulty === tag)).length
+            return count >= value
+        }
+
+        return STRATEGIES[condition.type] ? STRATEGIES[condition.type]() : false
     }
 
     try {
