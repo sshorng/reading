@@ -109,7 +109,13 @@
                <input v-model="generatedResult.title" type="text" class="input-styled w-full bg-white font-black text-lg">
             </div>
             <div class="space-y-2">
-               <label class="text-xs font-black text-slate-400 uppercase tracking-widest">文章正文</label>
+               <div class="flex justify-between items-center mb-1">
+                 <label class="text-xs font-black text-slate-400 uppercase tracking-widest">文章正文</label>
+                 <button @click="openAIRefine" class="btn-secondary py-1 px-3 text-[10px] font-black flex items-center gap-1 shadow-sm hover:shadow">
+                   <svg class="w-3 h-3 text-red-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                   ✨ AI 局部編修
+                 </button>
+               </div>
                <textarea v-model="generatedResult.article" rows="10" class="input-styled w-full text-base bg-white leading-relaxed" placeholder="生成的內容將顯示在此..."></textarea>
             </div>
          </div>
@@ -136,6 +142,40 @@
          </button>
       </template>
     </div>
+
+    <!-- AI Refine Input Modal -->
+    <div v-if="showAiRefineModal" class="fixed inset-0 z-[300] flex items-center justify-center p-4">
+      <div class="fixed inset-0 bg-slate-900/80 backdrop-blur-md" @click="showAiRefineModal = false"></div>
+      <div class="relative z-10 bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-indigo-100 flex flex-col">
+         <div class="bg-indigo-600 px-6 py-5 flex justify-between items-center shrink-0 shadow-lg">
+            <h4 class="text-white font-black flex items-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+              AI 智能編修：原文正文
+            </h4>
+            <button @click="showAiRefineModal = false" class="text-indigo-200 hover:text-white transition-colors">
+               <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+         </div>
+         <div class="p-6 space-y-5">
+            <div class="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
+               <p class="text-xs text-indigo-800 leading-relaxed font-bold italic">
+                 「夫子，請告知書僮您對內容的修訂原委，書僮定當竭力達成。」
+               </p>
+            </div>
+            <div class="space-y-1">
+               <label class="text-[10px] font-black text-gray-400 ml-1 uppercase tracking-widest">編修聖旨</label>
+               <textarea v-model="aiRefinePrompt" rows="5" class="input-styled w-full text-sm leading-relaxed" placeholder="例如：將語句修飾得更為古雅優美、第一段太冗長請精簡..."></textarea>
+            </div>
+         </div>
+         <div class="px-6 py-5 bg-slate-50 border-t flex gap-4 shrink-0">
+            <button @click="showAiRefineModal = false" class="btn-secondary flex-1 py-3 text-sm font-bold">先等等</button>
+            <button @click="handleAIRefine" :disabled="refiningAI" class="btn-primary flex-[2] py-3 text-sm font-black shadow-indigo-200 shadow-lg flex justify-center items-center gap-2">
+              <span v-if="refiningAI" class="loader-sm w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
+              {{ refiningAI ? '書僮運筆研墨中...' : '確認編修' }}
+            </button>
+         </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -149,7 +189,8 @@ import {
   generateAssignmentFromTopic, 
   generateQuestionsFromText, 
   generateFullAnalysis,
-  formatText
+  formatText,
+  callGenerativeAI
 } from '../../services/ai'
 
 const props = defineProps({
@@ -231,6 +272,30 @@ const handleGenerateTopicIdea = async () => {
     alert('靈感發想失敗：' + err.message)
   } finally {
     generatingTopicIdea.value = false
+  }
+}
+
+const showAiRefineModal = ref(false)
+const aiRefinePrompt = ref('')
+const refiningAI = ref(false)
+
+const openAIRefine = () => {
+  aiRefinePrompt.value = ''
+  showAiRefineModal.value = true
+}
+
+const handleAIRefine = async () => {
+  if (!aiRefinePrompt.value.trim() || !generatedResult.value?.article) return
+  refiningAI.value = true
+  try {
+    const prompt = `你是一位專業且細心的中文文本編輯。請根據以下指令潤飾提供的文章，並嚴格遵守段落排版規則：在每一個「自然段落」的開頭，加上兩個全形空格 "　　" 作為縮排。段落之間空一行。僅輸出潤飾後的文稿，不要有任何解析或廢話。\n\n指令：${aiRefinePrompt.value}\n原文：\n${generatedResult.value.article}`
+    const res = await callGenerativeAI(prompt)
+    generatedResult.value.article = res
+    showAiRefineModal.value = false
+  } catch (err) {
+    alert('AI 潤飾失敗：' + err.message)
+  } finally {
+    refiningAI.value = false
   }
 }
 
