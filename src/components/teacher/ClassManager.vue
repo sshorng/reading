@@ -94,22 +94,58 @@
           </h3>
           <button @click="generateOverdueReport" class="btn-secondary py-1 px-4 text-xs font-bold">查看最新回報</button>
         </div>
-        <div class="p-4 bg-red-50 border border-red-100 rounded-xl min-h-[80px]">
-           <div v-if="overdueLoading" class="flex items-center justify-center py-4 gap-2 text-red-600 font-medium">
-             <div class="loader-sm w-4 h-4 border-2 border-red-800/20 border-t-red-800 rounded-full animate-spin"></div>
+        <div class="px-6 py-5 bg-white border border-gray-100 rounded-2xl shadow-sm min-h-[120px]">
+           <div v-if="overdueLoading" class="flex items-center justify-center py-8 gap-3 text-rose-600 font-bold">
+             <div class="loader-sm w-5 h-5 border-2 border-rose-800/20 border-t-rose-800 rounded-full animate-spin"></div>
              正在查閱各地書院卷軸...
            </div>
-           <div v-else-if="overdueData.length === 0" class="text-slate-400 text-center py-4">
-             夫子，目前尚無學子逾期，或是您還沒有點擊「查看最新回報」。
+           
+           <div v-else-if="!hasCheckedOverdue" class="flex flex-col items-center justify-center py-10 text-slate-400">
+             <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-slate-200 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+             <p class="font-medium">尚未進行清查，請點擊右上方「查看最新回報」</p>
            </div>
-           <div v-else class="space-y-3">
-             <div v-for="stu in overdueData" :key="stu.id" class="text-sm">
-               <span class="font-bold text-red-800">{{ stu.seatNumber }}號 {{ stu.name }}：</span>
-               <span class="text-slate-600">
-                 <span v-for="(task, index) in stu.tasks" :key="index">
-                    {{ task.title }} <span class="text-xs text-red-700 font-medium">{{ task.deadlineStr }}</span><span v-if="index < stu.tasks.length - 1">、</span>
+           
+           <div v-else-if="overdueData.length === 0" class="flex flex-col items-center justify-center py-10 text-emerald-600">
+             <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-emerald-100 mb-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+             <p class="font-black text-xl mb-1">太棒了！</p>
+             <p class="font-medium text-emerald-700/70">目前全班沒有任何逾期未交的課業 🎉</p>
+           </div>
+           
+           <div v-else class="space-y-4">
+             <div class="flex justify-end mb-2">
+               <button @click="copyOverdueList" class="btn-secondary py-1.5 px-3 text-xs font-bold flex items-center gap-1 text-slate-600 hover:text-slate-800 bg-slate-50 border-slate-200">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+                 複製催收名單
+               </button>
+             </div>
+             
+             <div v-for="stu in overdueData" :key="stu.id" class="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-white border border-rose-100 rounded-xl shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+               <div class="absolute top-0 left-0 w-1 h-full bg-rose-500"></div>
+               
+               <!-- 學生資訊區 -->
+               <div class="flex items-center gap-3 mb-3 md:mb-0 w-full md:w-48 shrink-0">
+                 <div class="w-10 h-10 rounded-full bg-rose-50 border border-rose-100 text-rose-700 flex items-center justify-center font-black text-lg">
+                   {{ stu.seatNumber }}
+                 </div>
+                 <div>
+                   <h4 class="font-bold text-gray-800 text-lg">{{ stu.name }}</h4>
+                   <span class="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold">缺交 {{ stu.tasks.length }} 篇</span>
+                 </div>
+               </div>
+
+               <!-- 欠交文章區 -->
+               <div class="flex-grow md:mx-6 flex flex-wrap gap-2">
+                 <span v-for="(task, index) in stu.tasks" :key="index" class="text-xs border border-rose-100 bg-rose-50/50 text-slate-700 px-2.5 py-1.5 rounded-md flex items-center gap-1.5 shadow-sm">
+                   {{ task.title }}
+                   <span class="text-rose-600 font-bold bg-white px-1 rounded">{{ task.deadlineStr }}</span>
                  </span>
-               </span>
+               </div>
+
+               <!-- 操作區 -->
+               <button @click="viewStudentSubmissions(stu)" class="shrink-0 mt-3 md:mt-0 text-xs font-bold text-teal-600 border border-teal-200 hover:text-teal-800 bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-lg transition-colors flex items-center gap-1">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                 查看歷程
+               </button>
              </div>
            </div>
         </div>
@@ -156,6 +192,7 @@ const newStudent = ref({ seat: '', name: '' })
 const bulkImportText = ref('')
 const overdueData = ref([])
 const overdueLoading = ref(false)
+const hasCheckedOverdue = ref(false)
 
 const editingStudent = ref(false)
 const editingStudentData = ref(null)
@@ -270,6 +307,7 @@ const deleteStudent = async (student) => {
 
 const generateOverdueReport = async () => {
   if (!props.classId) return
+  hasCheckedOverdue.value = true
   overdueLoading.value = true
   try {
     const now = new Date()
@@ -279,7 +317,6 @@ const generateOverdueReport = async () => {
     
     if (overdueAssignments.length === 0) {
       overdueData.value = []
-      alert('目前無人逾期！')
       return
     }
 
@@ -309,6 +346,44 @@ const generateOverdueReport = async () => {
     console.error(err); alert('報表生成失敗')
   } finally {
     overdueLoading.value = false
+  }
+}
+
+const copyOverdueList = async () => {
+  if (overdueData.value.length === 0) return
+  
+  const lines = overdueData.value.map(stu => {
+    const taskTitles = stu.tasks.map(t => t.title).join('、')
+    return `${stu.seatNumber}號 ${stu.name} 尚未繳交：${taskTitles}`
+  })
+  
+  const textToCopy = `【書院課業逾期名單】\n${lines.join('\n')}`
+  
+  try {
+    await navigator.clipboard.writeText(textToCopy)
+    alert('逾期名單已複製到剪貼簿！')
+  } catch (err) {
+    console.error('Failed to copy text: ', err)
+    alert('複製失敗，請手動選取複製')
+  }
+}
+
+const copyOverdueList = async () => {
+  if (overdueData.value.length === 0) return
+  
+  const lines = overdueData.value.map(stu => {
+    const taskTitles = stu.tasks.map(t => t.title).join('、')
+    return `${stu.seatNumber}號 ${stu.name} 尚未繳交：${taskTitles}`
+  })
+  
+  const textToCopy = `【書院課業逾期名單】\n${lines.join('\n')}`
+  
+  try {
+    await navigator.clipboard.writeText(textToCopy)
+    alert('逾期名單已複製到剪貼簿！')
+  } catch (err) {
+    console.error('Failed to copy text: ', err)
+    alert('複製失敗，請手動選取複製')
   }
 }
 
