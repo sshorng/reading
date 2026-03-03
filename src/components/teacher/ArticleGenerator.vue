@@ -253,6 +253,11 @@ watch(
   { deep: true }
 )
 
+// 切換模式時清除已生成的結果，避免畫面與資料錯亂
+watch(mode, () => {
+  generatedResult.value = null
+})
+
 const clearDraft = () => {
   localStorage.removeItem(DRAFT_KEY)
   topic.value = ''
