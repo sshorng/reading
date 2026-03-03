@@ -151,11 +151,11 @@ const lockedAchievements = computed(() => {
 })
 
 const conditionOptions = [
-    { label: '【基礎與廣度】', options: [{ value: 'submission_count', text: '總閱讀篇數 (篇)' }, { value: 'genre_explorer', text: '文體全通 (完成 N 種不同文體)' }, { value: 'unique_formats_read', text: '形式大師 (完成 N 種不同形式)' }, ...['記敘', '抒情', '說明', '議論', '應用'].map(tag => ({ value: `read_tag_contentType_${tag}`, text: `完成「${tag}」文章數 (篇)` })), ...['基礎', '普通', '進階', '困難'].map(tag => ({ value: `read_tag_difficulty_${tag}`, text: `完成「${tag}」難度數 (篇)` }))] },
-    { label: '【精準與品質】(嚴看初考)', options: [{ value: 'high_score_streak', text: '連續高分次數 (次)' }, { value: 'average_score', text: '歷史初考總平均達標 (分)' }, { value: 'first_try_min_score', text: '單篇「初考」達標指定分數' }] },
-    { label: '【毅力與重修】(鼓勵練習)', options: [{ value: 'perfect_score_count', text: '最終獲得 100 分的總篇數 (篇)' }, { value: 'recovery_count', text: '初考不及格，但最終滿分的總篇數 (篇)' }, { value: 'min_retry_count', text: '單篇重考超過 N 次且及格' }] },
-    { label: '【恆心與進階】', options: [{ value: 'login_streak', text: '連續登入天數 (天)' }, { value: 'completion_streak', text: '課業全清連續天數 (天)' }, { value: 'weekly_progress', text: '本週進步與否' }] },
-    { label: '【效率與作息】(特殊模組)', options: [{ value: 'speed_under_seconds', text: '單篇極速完賽短於 N 秒且及格' }, { value: 'duration_over_seconds', text: '長篇細讀作答長於 N 秒且及格' }, { value: 'days_before_deadline', text: '未雨綢繆：在期限前提早 N 天交卷' }, { value: 'off_hours_count', text: '深夜或極早晨交卷的總篇數 (篇)' }] }
+    { label: '基礎與廣度', options: [{ value: 'submission_count', text: '總閱讀篇數 (篇)' }, { value: 'genre_explorer', text: '文體全通 (完成 N 種不同文體)' }, { value: 'unique_formats_read', text: '形式大師 (完成 N 種不同形式)' }, ...['記敘', '抒情', '說明', '議論', '應用'].map(tag => ({ value: `read_tag_contentType_${tag}`, text: `完成「${tag}」文章數 (篇)` })), ...['基礎', '普通', '進階', '困難'].map(tag => ({ value: `read_tag_difficulty_${tag}`, text: `完成「${tag}」難度數 (篇)` }))] },
+    { label: '精準與品質', options: [{ value: 'high_score_streak', text: '連續高分次數 (次)' }, { value: 'average_score', text: '歷史初考總平均達標 (分)' }, { value: 'first_try_min_score', text: '單篇「初考」達標指定分數' }] },
+    { label: '毅力與重修', options: [{ value: 'perfect_score_count', text: '最終獲得 100 分的總篇數 (篇)' }, { value: 'recovery_count', text: '初考不及格，但最終滿分的總篇數 (篇)' }, { value: 'min_retry_count', text: '單篇重考超過 N 次且及格' }] },
+    { label: '恆心與進階', options: [{ value: 'login_streak', text: '連續登入天數 (天)' }, { value: 'completion_streak', text: '課業全清連續天數 (天)' }, { value: 'weekly_progress', text: '本週進步與否' }] },
+    { label: '效率與作息', options: [{ value: 'speed_under_seconds', text: '單篇極速完賽短於 N 秒且及格' }, { value: 'duration_over_seconds', text: '長篇細讀作答長於 N 秒且及格' }, { value: 'days_before_deadline', text: '未雨綢繆：在期限前提早 N 天交卷' }, { value: 'off_hours_count', text: '深夜或極早晨交卷的總篇數 (篇)' }] }
 ]
 
 const getConditionLabel = (type) => {

@@ -111,7 +111,7 @@ const form = ref(null)
 
 const conditionOptions = [
     { 
-        label: '【基礎與廣度】', 
+        label: '基礎與廣度', 
         options: [
             { value: 'submission_count', text: '總閱讀篇數 (篇)' },
             { value: 'genre_explorer', text: '文體全通 (完成 N 種不同文體)' },
@@ -121,7 +121,7 @@ const conditionOptions = [
         ] 
     },
     { 
-        label: '【精準與品質】(嚴看初考)', 
+        label: '精準與品質', 
         options: [
             { value: 'high_score_streak', text: '連續高分次數 (次)' }, 
             { value: 'average_score', text: '歷史初考總平均達標 (分)' }, 
@@ -129,7 +129,7 @@ const conditionOptions = [
         ] 
     },
     { 
-        label: '【毅力與重修】(鼓勵練習)', 
+        label: '毅力與重修', 
         options: [
             { value: 'perfect_score_count', text: '最終獲得 100 分的總篇數 (篇)' }, 
             { value: 'recovery_count', text: '初考不及格，但最終滿分的總篇數 (篇)' }, 
@@ -137,7 +137,7 @@ const conditionOptions = [
         ] 
     },
     { 
-        label: '【恆心與進階】', 
+        label: '恆心與進階', 
         options: [
             { value: 'login_streak', text: '連續登入天數 (天)' }, 
             { value: 'completion_streak', text: '課業全清連續天數 (天)' }, 
@@ -145,7 +145,7 @@ const conditionOptions = [
         ] 
     },
     { 
-        label: '【效率與作息】(特殊模組)', 
+        label: '效率與作息', 
         options: [
             { value: 'speed_under_seconds', text: '單篇極速完賽短於 N 秒且及格 (一次即解鎖)' }, 
             { value: 'duration_over_seconds', text: '長篇細讀作答長於 N 秒且及格 (一次即解鎖)' }, 
