@@ -345,10 +345,17 @@ const generateOverdueReport = async () => {
         if (!passed) {
           const d = assignment.deadline.toDate()
           const deadlineStr = `(${d.getMonth() + 1}/${d.getDate()})`;
-          tasks.push({ title: assignment.title, deadlineStr: deadlineStr })
+          tasks.push({ 
+            title: assignment.title, 
+            deadlineStr: deadlineStr,
+            deadlineTime: d.getTime()
+          })
         }
       })
-      if (tasks.length > 0) results.push({ ...student, tasks })
+      if (tasks.length > 0) {
+        tasks.sort((a, b) => b.deadlineTime - a.deadlineTime)
+        results.push({ ...student, tasks })
+      }
     })
     overdueData.value = results.sort((a, b) => a.seatNumber - b.seatNumber)
   } catch (err) {
