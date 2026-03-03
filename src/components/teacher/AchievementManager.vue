@@ -22,9 +22,25 @@
       <p class="text-slate-400 font-medium">夫子稍候，正在翻閱榮譽名冊...</p>
     </div>
 
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-fade-in">
-      <div v-for="ach in achievements" :key="ach.id" 
-           class="group relative bg-white border border-gray-100 rounded-2xl p-6 hover:shadow-xl hover:border-red-100 transition-all duration-300 flex flex-col">
+    <!-- Filter Bar -->
+    <div class="flex flex-wrap gap-2 mb-6 animate-fade-in">
+      <button @click="currentFilter = 'all'" 
+              :class="currentFilter === 'all' ? 'bg-slate-800 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" 
+              class="px-4 py-2 rounded-full text-sm font-bold transition-all">
+        顯示全部
+      </button>
+      <button v-for="(cat, idx) in conditionOptions" :key="idx"
+              @click="currentFilter = cat.label"
+              :class="currentFilter === cat.label ? 'bg-red-800 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+              class="px-4 py-2 rounded-full text-sm font-bold transition-all flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full" :class="getCategoryColorClass(cat.label, true)"></span>
+        {{ cat.label }}
+      </button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-fade-in">
+      <div v-for="ach in filteredAchievements" :key="ach.id" 
+           :class="['group relative bg-white border-y border-r border-gray-100 rounded-2xl p-6 hover:shadow-xl transition-all duration-300 flex flex-col border-l-4', getCategoryColorClassByCondition(ach.conditions[0]?.type)]">
         <div class="flex items-start gap-4 mb-4">
           <div class="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-4xl shadow-inner group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500">
             {{ ach.icon || '🏆' }}
@@ -87,6 +103,7 @@ import AchievementModal from './AchievementModal.vue'
 
 const achievements = ref([])
 const loading = ref(false)
+const currentFilter = ref('all')
 
 const showModal = ref(false)
 const isEditing = ref(false)
@@ -145,6 +162,38 @@ const getConditionLabel = (type) => {
   }
   return type
 }
+
+const getCategoryColorClass = (label, bgOnly = false) => {
+  if (label.includes('基礎與廣度')) return bgOnly ? 'bg-emerald-400' : 'border-l-emerald-400 hover:border-emerald-500'
+  if (label.includes('精準與品質')) return bgOnly ? 'bg-amber-400' : 'border-l-amber-400 hover:border-amber-500'
+  if (label.includes('毅力與重修')) return bgOnly ? 'bg-rose-400' : 'border-l-rose-400 hover:border-rose-500'
+  if (label.includes('恆心與進階')) return bgOnly ? 'bg-blue-400' : 'border-l-blue-400 hover:border-blue-500'
+  if (label.includes('效率與作息')) return bgOnly ? 'bg-purple-400' : 'border-l-purple-400 hover:border-purple-500'
+  return bgOnly ? 'bg-slate-300' : 'border-l-slate-300'
+}
+
+const getCategoryColorClassByCondition = (type) => {
+  if (!type) return 'border-l-slate-300'
+  for (const grp of conditionOptions) {
+    if (grp.options.find(o => o.value === type)) {
+      return getCategoryColorClass(grp.label)
+    }
+  }
+  return 'border-l-slate-300'
+}
+
+import { computed } from 'vue'
+
+const filteredAchievements = computed(() => {
+  if (currentFilter.value === 'all') return achievements.value
+  return achievements.value.filter(ach => {
+    // Check if ANY of the achievement's conditions belong to the selected category
+    return ach.conditions && ach.conditions.some(cond => {
+      const category = conditionOptions.find(cat => cat.label === currentFilter.value)
+      return category && category.options.some(opt => opt.value === cond.type)
+    })
+  })
+})
 
 const fetchAchievements = async () => {
   loading.value = true
