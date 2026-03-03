@@ -42,12 +42,12 @@ export async function saveSubmission(submissionData) {
             })
         }
 
-        // 高分連續次數更新 (分數 >= 90)
+        // 高分連續次數更新 (分數 >= 80)
         const studentRef = doc(db, `classes/${authStore.currentUser.classId}/students`, studentId)
         const studentSnap = await getDoc(studentRef)
         if (studentSnap.exists()) {
             const studentData = studentSnap.data()
-            const newHighScoreStreak = score >= 90 ? (studentData.highScoreStreak || 0) + 1 : 0
+            const newHighScoreStreak = score >= 80 ? (studentData.highScoreStreak || 0) + 1 : 0
             await updateDoc(studentRef, { highScoreStreak: newHighScoreStreak })
             authStore.currentUser.highScoreStreak = newHighScoreStreak
         }
