@@ -29,23 +29,24 @@
           <span class="w-1.5 h-4 bg-teal-500 rounded-full"></span>
           <span class="text-sm font-bold text-slate-600">詳細作答記錄</span>
       </div>
-      <div v-for="sub in submissions" :key="sub.id" 
+      <div v-for="sub in sortedSubmissions" :key="sub.id" 
            @click="viewSubmissionDetail(sub)"
            class="p-5 bg-white rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors group">
         <div class="flex justify-between items-start mb-3">
-          <div class="space-y-1">
-            <div class="font-black text-slate-800 group-hover:text-red-800 transition-colors flex items-center gap-2">
+            <div class="font-black text-slate-800 group-hover:text-red-800 transition-colors flex items-center gap-2 mb-2">
               {{ sub.assignmentTitle || '無題篇章' }}
             </div>
-            <div class="text-[10px] text-slate-400 flex items-center gap-2">
-              <span class="bg-white px-2 py-0.5 rounded border border-slate-100">挑戰：{{ sub.attempts?.length || 1 }} 次</span>
-              <span v-if="sub.updatedAt" class="opacity-70">最近繳卷：{{ formatDate(sub.updatedAt) }}</span>
-            </div>
-            <div class="text-[10px] pt-0.5">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-[10px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-100/60 font-medium">挑戰：{{ sub.attempts?.length || 1 }} 次</span>
+              <span v-if="sub.updatedAt" class="text-[10px] text-slate-400 opacity-80 flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                {{ formatDateTime(sub.updatedAt) }}
+              </span>
               <template v-if="assignmentDeadlines[sub.assignmentId]">
-                 <span :class="isLate(sub.updatedAt, assignmentDeadlines[sub.assignmentId]) ? 'text-rose-500 font-bold' : 'text-slate-400'">
-                   ⏳ 期限：{{ formatDate(assignmentDeadlines[sub.assignmentId]) }}
-                   <span v-if="isLate(sub.updatedAt, assignmentDeadlines[sub.assignmentId])">(已遲交)</span>
+                 <span :class="isLate(sub.updatedAt, assignmentDeadlines[sub.assignmentId]) ? 'text-rose-500 font-bold bg-rose-50 border-rose-100' : 'text-slate-400 bg-slate-50 border-slate-100'" class="text-[10px] px-2 py-0.5 rounded border flex items-center gap-1">
+                   <span v-if="!isLate(sub.updatedAt, assignmentDeadlines[sub.assignmentId])">⏳</span>
+                   <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                   期限：{{ formatDate(assignmentDeadlines[sub.assignmentId]) }}
                  </span>
               </template>
             </div>
@@ -335,13 +336,36 @@ watch(() => props.submissions, (subs) => {
 const formatDate = (val) => {
   if (!val) return ''
   const d = val.toDate ? val.toDate() : new Date(val)
-  return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${m}/${day}`
+}
+
+const formatDateTime = (ts) => {
+  if (!ts) return ''
+  const date = ts.toDate ? ts.toDate() : new Date(ts)
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mm = String(date.getMinutes()).padStart(2, '0')
+  return `${m}/${d} ${hh}:${mm}`
 }
 
 const getScoreClass = (sub) => {
   const score = getFirstScore(sub)
-  return score >= 60 ? 'text-teal-600' : 'text-rose-600'
+  if (score >= 90) return 'text-emerald-500'
+  if (score >= 80) return 'text-teal-500'
+  if (score >= 60) return 'text-amber-500'
+  return 'text-rose-500'
 }
+
+const sortedSubmissions = computed(() => {
+  return [...props.submissions].sort((a, b) => {
+    const timeA = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : new Date(a.updatedAt || 0).getTime()
+    const timeB = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : new Date(b.updatedAt || 0).getTime()
+    return timeB - timeA
+  })
+})
 
 const viewSubmissionDetail = async (sub) => {
     selectedSubDetail.value = sub
