@@ -228,19 +228,19 @@
     <!-- AI Refine Input Modal (Unchanged Base Logic, but polished styles) -->
     <div v-if="showAiRefineModal" class="fixed inset-0 z-[300] flex items-center justify-center p-4">
       <div class="fixed inset-0 bg-slate-900/80 backdrop-blur-md" @click="showAiRefineModal = false"></div>
-      <div class="relative z-10 bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-indigo-100 flex flex-col">
-         <div class="bg-indigo-600 px-6 py-5 flex justify-between items-center shrink-0 shadow-lg">
+      <div class="relative z-10 bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-red-100 flex flex-col">
+         <div class="bg-red-800 px-6 py-5 flex justify-between items-center shrink-0 shadow-lg">
             <h4 class="text-white font-black flex items-center gap-2">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
               AI 智能編修：{{ refineLabel }}
             </h4>
-            <button @click="showAiRefineModal = false" class="text-indigo-200 hover:text-white transition-colors">
+            <button @click="showAiRefineModal = false" class="text-red-200 hover:text-white transition-colors">
                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
          </div>
          <div class="p-6 space-y-5">
-            <div class="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
-               <p class="text-xs text-indigo-800 leading-relaxed font-bold italic">
+            <div class="p-4 bg-amber-50/50 rounded-2xl border border-amber-100/50">
+               <p class="text-xs text-amber-800 leading-relaxed font-bold italic">
                  「夫子，請告知書僮您對內容的修訂原委，書僮定當竭力達成。」
                </p>
             </div>
@@ -251,7 +251,8 @@
          </div>
          <div class="px-6 py-5 bg-slate-50 border-t flex gap-4 shrink-0">
             <button @click="showAiRefineModal = false" class="btn-secondary flex-1 py-3 text-sm font-bold">先等等</button>
-            <button @click="handleAIRefine" :disabled="refiningAI" class="btn-primary flex-[2] py-3 text-sm font-black shadow-indigo-200 shadow-lg">
+            <button @click="handleAIRefine" :disabled="refiningAI" class="btn-primary flex-[2] py-3 text-sm font-black shadow-red-200 shadow-lg flex justify-center items-center gap-2">
+              <span v-if="refiningAI" class="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
               {{ refiningAI ? '書僮運筆研墨中...' : '確認編修' }}
             </button>
          </div>
