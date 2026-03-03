@@ -30,9 +30,16 @@
     <div class="flex-grow overflow-y-auto custom-scrollbar space-y-6 pr-2">
       <!-- AI Generation Options -->
       <section v-if="mode === 'ai'" class="space-y-4 animate-fade-in">
-        <div class="space-y-2">
-          <label class="text-sm font-bold text-gray-600">篇章主題</label>
-          <input v-model="topic" type="text" class="input-styled w-full" placeholder="例如：蘇軾與赤壁賦的曠達精神、氣候變遷對台灣的影響...">
+        <div class="space-y-1">
+          <div class="flex justify-between items-end mb-1">
+            <label class="text-sm font-bold text-gray-600">命題與寫作架構 (Prompt)</label>
+            <button @click="handleGenerateTopicIdea" type="button" :disabled="generatingTopicIdea" class="btn-secondary py-1.5 px-3 text-[10px] font-black flex items-center gap-1 shadow-sm hover:shadow">
+              <span v-if="generatingTopicIdea" class="loader-sm w-3 h-3 border-2 border-red-800/30 border-t-red-800 rounded-full animate-spin"></span>
+              <svg v-else class="w-3 h-3 text-red-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+              {{ generatingTopicIdea ? '書僮激腦中...' : '✨ AI 靈感發想' }}
+            </button>
+          </div>
+          <textarea v-model="topic" rows="5" class="input-styled w-full text-sm leading-relaxed custom-scrollbar" placeholder="在此輸入寫作指引（例如主題、語氣、段落結構...），或點擊上方「✨ AI 靈感」讓書僮代擬..."></textarea>
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -138,6 +145,7 @@ import { collection, addDoc, Timestamp } from 'firebase/firestore'
 import { db } from '../../firebase/init'
 import { useAuthStore } from '../../stores/auth'
 import { 
+  generateTopicIdea,
   generateAssignmentFromTopic, 
   generateQuestionsFromText, 
   generateFullAnalysis,
@@ -160,7 +168,20 @@ const tags = reactive({ format: '', contentType: '', difficulty: '' })
 
 const loading = ref(false)
 const saving = ref(false)
+const generatingTopicIdea = ref(false)
 const generatedResult = ref(null)
+
+const handleGenerateTopicIdea = async () => {
+  generatingTopicIdea.value = true
+  try {
+    const idea = await generateTopicIdea(tags)
+    topic.value = idea
+  } catch (err) {
+    alert('靈感發想失敗：' + err.message)
+  } finally {
+    generatingTopicIdea.value = false
+  }
+}
 
 const isActionDisabled = computed(() => {
   if (mode.value === 'ai') return !topic.value.trim()

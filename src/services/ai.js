@@ -197,6 +197,29 @@ ${difficultyInstruction}
 }
 
 /**
+ * 💡 AI 靈感發想（針對國中會考與素養導向）
+ */
+export async function generateTopicIdea(tags) {
+    const formatReq = tags?.format ? `，文章形式要求包含「${tags.format}」元素` : '';
+    const contentTypeReq = tags?.contentType ? `，文體偏好「${tags.contentType}」` : '';
+    const difficultyReq = tags?.difficulty ? `，難度大約設定在「${tags.difficulty}」等級` : '';
+
+    const prompt = `您是一位資深的台灣國中國文輔導團教師，擅長掌握「國中教育會考」的命題趨勢與 PISA 閱讀素養精神。
+您的任務是為國文老師（使用者）提供一個極具創意的「閱讀測驗寫作架構 Prompt」。這個架構將會交由另一個寫手 AI 來撰寫真正的文章。
+
+請構思一個具備素養導向、跨領域（如結合科技、環境、社會議題等）或古典文學創新視角的國中閱讀測驗主題方向${formatReq}${contentTypeReq}${difficultyReq}。
+
+請直接回傳一份針對「寫手 AI」的詳細寫作指令框架（純文字，不需 Markdown 語法或程式碼區塊），內容必須涵蓋以下四個面向，格式請使用清楚的條列式：
+
+核心主題：(請在此寫下具體且吸引人的主題，適合國中生認知程度)
+語氣與視角：(例如：以第一人稱的幽默口吻、或是客觀中立的科學家視角)
+寫作手法與段落要求：(例如：夾敘夾議、第一段破題並介紹背景、第二段舉出生活實例、第三段總結並提出反思)
+特殊呈現要求：(對排版或圖表的特殊指示，例如：請在文中適當處用條列重點總結、重點名詞加粗等)`;
+
+    return await callGenerativeAI(prompt);
+}
+
+/**
  * 為貼入的文章生成試題
  */
 export async function generateQuestionsFromText(title, article, tags) {
