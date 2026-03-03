@@ -34,7 +34,13 @@
                class="group flex items-center justify-between bg-white border border-gray-200 hover:bg-slate-50 rounded-lg px-4 py-3 transition-colors duration-200">
             <div class="flex items-center gap-3">
               <span class="text-[10px] font-black text-red-800 bg-red-800/10 w-6 h-6 rounded-full flex items-center justify-center shrink-0 shadow-inner">{{ s.seatNumber }}</span>
-              <span @click="viewStudentSubmissions(s)" class="text-base font-bold text-slate-700 cursor-pointer group-hover:text-red-800 transition-colors tracking-tight">{{ s.name }}</span>
+              <span @click="viewStudentSubmissions(s)" class="text-base font-bold text-slate-700 cursor-pointer group-hover:text-red-800 transition-colors tracking-tight flex items-center gap-2">
+                {{ s.name }}
+                <span v-if="s.isExempted" class="px-1.5 py-0.5 rounded pl-1 bg-slate-100 text-slate-500 text-[9px] font-bold flex items-center gap-0.5 border border-slate-200 shrink-0 uppercase tracking-widest whitespace-nowrap">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-2.5 w-2.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                  免修
+                </span>
+              </span>
             </div>
             <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button @click="editStudent(s)" class="p-1.5 text-gray-400 hover:text-blue-600 rounded-md hover:bg-blue-50" title="修訂學籍">
@@ -325,6 +331,9 @@ const generateOverdueReport = async () => {
     const classSubmissions = subSnap.docs.map(d => d.data())
     const results = []
     roster.value.forEach(student => {
+      // 若為免修生，則不列入逾期催收
+      if (student.isExempted) return;
+      
       const tasks = []
       overdueAssignments.forEach(assignment => {
         const sub = classSubmissions.find(s => s.studentId === student.id && s.assignmentId === assignment.id)

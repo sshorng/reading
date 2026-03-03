@@ -28,6 +28,19 @@
             <svg class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
           </div>
         </div>
+        <div class="space-y-2 pt-2 border-t border-slate-100">
+          <label class="flex items-center gap-3 cursor-pointer group">
+            <div class="relative flex items-center">
+              <input type="checkbox" v-model="form.isExempted" class="peer sr-only">
+              <div class="w-10 h-5 bg-slate-200 rounded-full peer peer-checked:bg-emerald-500 transition-colors"></div>
+              <div class="absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform peer-checked:translate-x-5 shadow-sm"></div>
+            </div>
+            <div class="flex flex-col">
+              <span class="text-sm font-bold text-slate-700 group-hover:text-emerald-700 transition-colors">暫停考核 (免修生)</span>
+              <span class="text-[10px] text-slate-400">開啟後不再列入逾期催收名單</span>
+            </div>
+          </label>
+        </div>
       </div>
 
       <div class="flex gap-3 pt-4">
@@ -54,7 +67,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'success'])
 
-const form = ref({ name: '', seatNumber: 0 })
+const form = ref({ name: '', seatNumber: 0, isExempted: false })
 const saving = ref(false)
 
 watch(() => props.studentData, (newData) => {
@@ -69,8 +82,12 @@ const handleSave = async () => {
   }
   saving.value = true
   try {
-    const { id, name, seatNumber } = form.value
-    await updateDoc(doc(db, `classes/${props.classId}/students`, id), { name, seatNumber })
+    const { id, name, seatNumber, isExempted } = form.value
+    await updateDoc(doc(db, `classes/${props.classId}/students`, id), { 
+      name, 
+      seatNumber, 
+      isExempted: !!isExempted 
+    })
     emit('success')
     emit('close')
   } catch (err) {
