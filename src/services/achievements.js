@@ -70,8 +70,15 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
                 }
                 break
             case 'genre_explorer': {
-                const tagCounts = sData.tagReadCounts || {}
-                const completedGenres = Object.keys(tagCounts).filter(key => key.startsWith('contentType_')).length
+                const allAssignments = eventData.allAssignments || []
+                const completedGenres = new Set(
+                    (subs || [])
+                        .map(s => {
+                            const assignment = allAssignments.find(a => a.id === s.assignmentId)
+                            return assignment?.contentType
+                        })
+                        .filter(Boolean)
+                ).size
                 if (completedGenres >= value) isMet = true
                 break
             }
@@ -159,7 +166,7 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
 
         const needsAssignments = allAchievements.some(ach => {
             if (!ach.isRepeatable && unlockedMap.has(ach.id)) return false
-            return (ach.conditions || []).some(c => c.type?.startsWith('read_tag_'))
+            return (ach.conditions || []).some(c => c.type?.startsWith('read_tag_') || c.type === 'genre_explorer')
         })
 
         if (needsAssignments && !eventData.allAssignments) {

@@ -173,6 +173,18 @@ const calculateProgress = (ach) => {
         current = authStore.currentUser?.loginStreak || 0
     } else if (cond.type === 'high_score_streak') {
         current = authStore.currentUser?.highScoreStreak || 0
+    } else if (cond.type === 'completion_streak') {
+        current = authStore.currentUser?.completionStreak || 0
+    } else if (cond.type === 'genre_explorer') {
+        const uniqueGenres = new Set(
+            studentSubmissions
+                .map(s => {
+                    const assignment = allAssignmentsCache.value.find(a => a.id === s.assignmentId)
+                    return assignment?.contentType
+                })
+                .filter(Boolean)
+        )
+        current = uniqueGenres.size
     }
     
     const target = cond.value || 1
