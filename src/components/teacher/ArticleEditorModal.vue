@@ -230,7 +230,7 @@
       <div class="fixed inset-0 bg-slate-900/80 backdrop-blur-md" @click="showAiRefineModal = false"></div>
       <div class="relative z-10 bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-red-100 flex flex-col">
          <div class="bg-red-800 px-6 py-5 flex justify-between items-center shrink-0 shadow-lg">
-            <h4 class="text-white font-black flex items-center gap-2">
+            <h4 class="text-white font-black flex items-center gap-2" style="color: white !important;">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
               AI 智能編修：{{ refineLabel }}
             </h4>
