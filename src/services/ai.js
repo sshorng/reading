@@ -162,9 +162,9 @@ ${difficultyInstruction}
     * ${articleInstruction}
     * **絕不使用圖片或圖片語法**。
 2.  **標籤要求**（若未特別指定，請依據您產生內容的實際狀況自主填入最恰當的屬性）：
-    * **形式**: ${tagFormat ? `請生成「${tagFormat}」形式的內容。` : `請自行判斷最適當的形式，於標籤填入純文、圖文或圖表。`}
-    * **內容**: ${tagContentType ? `請生成「${tagContentType}」類型的內容。` : `請自行判斷最適當的文體，於標籤填入記敘、抒情、說明、議論或應用。`}
-    * **難度**: ${tagDifficulty ? `請嚴格遵循上方的「難度指引」來生成「${tagDifficulty}」難度的內容，並將此難度作為標籤。` : `請自行決定最適當的難度，於標籤填入簡單、基礎、普通、進階或困難。`}
+    * **形式**: ${tagFormat ? `請生成「${tagFormat}」形式的內容（必須為 ${tagFormat}）。` : `請自行判斷最適當的形式，於標籤填入「純文」、「圖文」或「圖表」（絕對不可使用英文，如 pure_text 等）。`}
+    * **內容**: ${tagContentType ? `請生成「${tagContentType}」類型的內容（必須為 ${tagContentType}）。` : `請自行判斷最適當的文體，於標籤填入「記敘」、「抒情」、「說明」、「議論」或「應用」（絕對不可使用非此五類之詞彙）。`}
+    * **難度**: ${tagDifficulty ? `請生成「${tagDifficulty}」難度的內容，並將此難度作為標籤。` : `請自行決定最適當的難度，於標籤填入「簡單」、「基礎」、「普通」、「進階」或「困難」。`}
 3.  **產出格式**：請嚴格按照指定的 JSON 格式輸出，不要包含 JSON 格式以外的任何文字。`;
 
     const schema = {
@@ -174,9 +174,9 @@ ${difficultyInstruction}
             article: { type: "STRING" },
             tags: {
                 type: "OBJECT", properties: {
-                    format: { type: "STRING" },
-                    contentType: { type: "STRING" },
-                    difficulty: { type: "STRING" }
+                    format: { type: "STRING", enum: ["純文", "圖文", "圖表"] },
+                    contentType: { type: "STRING", enum: ["記敘", "抒情", "說明", "議論", "應用"] },
+                    difficulty: { type: "STRING", enum: ["簡單", "基礎", "普通", "進階", "困難"] }
                 }, required: ["format", "contentType", "difficulty"]
             }
         },
