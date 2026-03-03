@@ -71,6 +71,7 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
             }
 
             const hour = subDateObj.getHours()
+            // 深夜定義：23:00-04:59 (跨日判定)
             const isOffHours = hour >= 23 || hour <= 4
 
             return {
@@ -268,5 +269,39 @@ export async function calculateCompletionStreak(studentId, studentData) {
     }
 
     updates.lastCompletionCheckDate = Timestamp.now()
+    return updates
+}
+/**
+ * 更新學生的連續登入天數
+ * @param {string} studentId 
+ * @param {Object} studentData 
+ * @returns {Promise<Object>} 需要更新的欄位 (若無則回傳空物件)
+ */
+export async function updateLoginStreak(studentId, studentData) {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const lastLogin = studentData.lastLoginDate
+    const lastLoginDate = lastLogin?.toDate ? lastLogin.toDate() : (lastLogin ? new Date(lastLogin) : null)
+
+    const updates = {}
+    if (lastLoginDate) {
+        lastLoginDate.setHours(0, 0, 0, 0)
+        const diffDays = Math.round((today - lastLoginDate) / 86400000)
+
+        if (diffDays === 1) {
+            // 接續昨天的登入
+            updates.loginStreak = (studentData.loginStreak || 0) + 1
+        } else if (diffDays > 1) {
+            // 斷掉，重起爐灶
+            updates.loginStreak = 1
+        }
+        // diffDays === 0 代表當天重複登入，無需更新計數
+    } else {
+        // 首次登入
+        updates.loginStreak = 1
+    }
+
+    updates.lastLoginDate = new Date()
     return updates
 }

@@ -219,23 +219,42 @@ const pendingAssignments = ref([])
 
 const handleArticleSubmit = async (data) => {
   await saveSubmission(data)
+  
+  // 關鍵：強制重新從 Firebase 載入最新數據
+  const updatedSubmissions = await loadStudentSubmissions(authStore.currentUser.studentId)
   await fetchPendingAssignments()
 
-  // 成就自動頒發檢查
   const user = authStore.currentUser
   if (user?.type === 'student' && user.studentId) {
     try {
+      // 1. 同步處理跨午夜可能的紀錄更新
+      const allUpdates = {}
+      const streakUpdates = await calculateCompletionStreak(user.studentId, user)
+      Object.assign(allUpdates, streakUpdates)
+      
+      const loginUpdates = await updateLoginStreak(user.studentId, user)
+      Object.assign(allUpdates, loginUpdates)
+
+      if (Object.keys(allUpdates).length > 0) {
+        const { updateDoc, doc } = await import('firebase/firestore')
+        const { db } = await import('../../firebase/init')
+        await updateDoc(doc(db, `classes/${user.classId}/students`, user.studentId), allUpdates)
+        Object.assign(authStore.currentUser, allUpdates)
+      }
+
+      // 2. 執行成就檢查
       const unlocked = await checkAndAwardAchievements(
         user.studentId,
         'quiz_submit',
-        user,
-        { submissions: dataStore.allSubmissions.filter(s => s.studentId === user.studentId) }
+        authStore.currentUser,
+        { submissions: updatedSubmissions }
       )
+      
       if (unlocked > 0) {
         alert(`🏅 恭喜！您剛剛解鎖了 ${unlocked} 個新成就！點擊「我的成就」查看。`)
       }
     } catch (err) {
-      console.error('[Achievement] Post-submit check failed:', err)
+      console.error('[Achievement] Post-submit sync failed:', err)
     }
   }
 }
@@ -330,24 +349,8 @@ onMounted(async () => {
         Object.assign(allUpdates, streakUpdates)
 
         // 連續登入天數
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        const lastLogin = user.lastLoginDate
-        const lastLoginDate = lastLogin?.toDate ? lastLogin.toDate() : (lastLogin ? new Date(lastLogin) : null)
-
-        if (lastLoginDate) {
-          lastLoginDate.setHours(0, 0, 0, 0)
-          const diffDays = Math.round((today - lastLoginDate) / 86400000)
-          if (diffDays === 1) {
-            allUpdates.loginStreak = (user.loginStreak || 0) + 1
-          } else if (diffDays > 1) {
-            allUpdates.loginStreak = 1
-          }
-          // diffDays === 0 → 同天，不更新 loginStreak
-        } else {
-          allUpdates.loginStreak = 1
-        }
-        allUpdates.lastLoginDate = new Date()
+        const loginUpdates = await updateLoginStreak(user.studentId, user)
+        Object.assign(allUpdates, loginUpdates)
 
         if (Object.keys(allUpdates).length > 0) {
           const { updateDoc, doc } = await import('firebase/firestore')

@@ -61,7 +61,7 @@ import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { fetchClasses, fetchStudentsByClass, loadStudentSubmissions } from '../services/api'
-import { calculateCompletionStreak } from '../services/achievements'
+import { calculateCompletionStreak, updateLoginStreak } from '../services/achievements'
 import { hashString, generateDefaultPassword } from '../utils/helpers'
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase/init'
@@ -166,24 +166,8 @@ const handleStudentLogin = async () => {
       Object.assign(updates, streakUpdates)
 
       // 連續登入天數
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const lastLogin = studentInfo.lastLoginDate
-      const lastLoginDate = lastLogin?.toDate ? lastLogin.toDate() : (lastLogin ? new Date(lastLogin) : null)
-
-      if (lastLoginDate) {
-        lastLoginDate.setHours(0, 0, 0, 0)
-        const diffDays = Math.round((today - lastLoginDate) / 86400000)
-        if (diffDays === 1) {
-          updates.loginStreak = (studentInfo.loginStreak || 0) + 1
-        } else if (diffDays > 1) {
-          updates.loginStreak = 1
-        }
-        // diffDays === 0 → 同天再次登入，不更新
-      } else {
-        updates.loginStreak = 1
-      }
-      updates.lastLoginDate = new Date()
+      const loginUpdates = await updateLoginStreak(selectedStudent.value, studentInfo)
+      Object.assign(updates, loginUpdates)
 
       if (Object.keys(updates).length > 0) {
         await updateDoc(studentRef, updates)
