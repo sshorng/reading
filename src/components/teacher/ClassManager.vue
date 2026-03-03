@@ -339,7 +339,9 @@ const generateOverdueReport = async () => {
         const sub = classSubmissions.find(s => s.studentId === student.id && s.assignmentId === assignment.id)
         let passed = false
         if (sub) {
-          const high = sub.attempts ? Math.max(...sub.attempts.map(a => a.score)) : (sub.score || 0)
+          const high = (sub.attempts && sub.attempts.length > 0) 
+            ? Math.max(...sub.attempts.map(a => a.score)) 
+            : (sub.score || 0)
           passed = high >= 60
         }
         if (!passed) {

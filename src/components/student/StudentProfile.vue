@@ -33,6 +33,7 @@
            @click="viewSubmissionDetail(sub)"
            class="p-5 bg-white rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors group">
         <div class="flex justify-between items-start mb-3">
+          <div class="flex-1 pr-4">
             <div class="font-black text-slate-800 group-hover:text-red-800 transition-colors flex items-center gap-2 mb-2">
               {{ sub.assignmentTitle || '無題篇章' }}
             </div>
@@ -50,6 +51,7 @@
                  </span>
               </template>
              </div>
+          </div>
           <div :class="getScoreClass(sub)" class="font-black text-2xl flex flex-col items-end leading-tight">
             {{ getFirstScore(sub) }}
             <span class="text-[9px] font-bold uppercase tracking-tighter opacity-50">Score</span>
