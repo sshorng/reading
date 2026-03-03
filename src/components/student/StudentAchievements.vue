@@ -95,9 +95,17 @@ const unlockedRecords = ref([])
 
 const currentRank = computed(() => {
     const count = unlockedRecords.value.length
-    if (count >= 10) return '一代宗師'
-    if (count >= 7) return '博學鴻儒'
-    if (count >= 4) return '青雲志士'
+    if (count >= 50) return '萬卷歸宗'
+    if (count >= 45) return '超凡入聖'
+    if (count >= 40) return '天人合一'
+    if (count >= 35) return '登峰造極'
+    if (count >= 30) return '絕世大師'
+    if (count >= 25) return '一代宗師'
+    if (count >= 20) return '淵博大儒'
+    if (count >= 15) return '博學鴻儒'
+    if (count >= 10) return '文采斐然'
+    if (count >= 7) return '青雲志士'
+    if (count >= 4) return '展露頭角'
     if (count >= 1) return '初出茅廬'
     return '砥礪前行'
 })
