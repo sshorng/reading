@@ -140,7 +140,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, watch, onMounted } from 'vue'
 import { collection, addDoc, Timestamp } from 'firebase/firestore'
 import { db } from '../../firebase/init'
 import { useAuthStore } from '../../stores/auth'
@@ -170,6 +170,57 @@ const loading = ref(false)
 const saving = ref(false)
 const generatingTopicIdea = ref(false)
 const generatedResult = ref(null)
+
+const DRAFT_KEY = 'reading_academy_article_draft'
+
+// 初始化：載入草稿
+onMounted(() => {
+  try {
+    const saved = localStorage.getItem(DRAFT_KEY)
+    if (saved) {
+      const data = JSON.parse(saved)
+      if (data.mode) mode.value = data.mode
+      if (data.topic) topic.value = data.topic
+      if (data.pastedTitle) pastedTitle.value = data.pastedTitle
+      if (data.pastedContent) pastedContent.value = data.pastedContent
+      if (data.isPublic !== undefined) isPublic.value = data.isPublic
+      if (data.deadline) deadline.value = data.deadline
+      if (data.tags) Object.assign(tags, data.tags)
+      if (data.generatedResult) generatedResult.value = data.generatedResult
+    }
+  } catch (e) {
+    console.error('載入草稿失敗:', e)
+  }
+})
+
+// 自動儲存草稿
+watch(
+  [mode, topic, pastedTitle, pastedContent, isPublic, deadline, () => tags, generatedResult],
+  () => {
+    const data = {
+      mode: mode.value,
+      topic: topic.value,
+      pastedTitle: pastedTitle.value,
+      pastedContent: pastedContent.value,
+      isPublic: isPublic.value,
+      deadline: deadline.value,
+      tags: { ...tags },
+      generatedResult: generatedResult.value
+    }
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(data))
+  },
+  { deep: true }
+)
+
+const clearDraft = () => {
+  localStorage.removeItem(DRAFT_KEY)
+  topic.value = ''
+  pastedTitle.value = ''
+  pastedContent.value = ''
+  deadline.value = ''
+  isPublic.value = false
+  generatedResult.value = null
+}
 
 const handleGenerateTopicIdea = async () => {
   generatingTopicIdea.value = true
@@ -253,6 +304,10 @@ const saveAssignment = async () => {
       teacherName: authStore.currentUser?.displayName || '研墨夫子'
     }
     await addDoc(collection(db, 'assignments'), payload)
+    
+    // 成功發佈後清除草稿
+    clearDraft()
+    
     alert('成功發佈新篇章！')
     emit('close')
     emit('success')
