@@ -49,8 +49,7 @@
                    期限：{{ formatDate(assignmentDeadlines[sub.assignmentId]) }}
                  </span>
               </template>
-            </div>
-          </div>
+             </div>
           <div :class="getScoreClass(sub)" class="font-black text-2xl flex flex-col items-end leading-tight">
             {{ getFirstScore(sub) }}
             <span class="text-[9px] font-bold uppercase tracking-tighter opacity-50">Score</span>

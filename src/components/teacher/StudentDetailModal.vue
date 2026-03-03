@@ -66,7 +66,6 @@
                        </span>
                     </template>
                   </div>
-                </div>
                 <div :class="getScoreClass(sub)" class="font-black text-2xl flex flex-col items-end">
                   {{ sub.attempts && sub.attempts.length > 0 ? sub.attempts[0].score : sub.score }}
                   <span class="text-[9px] font-bold uppercase tracking-tighter opacity-50">Score</span>
@@ -392,11 +391,7 @@ watch([() => props.isVisible, () => props.submissions, () => props.loading], ([v
   }
 })
 
-const formatDate = (val) => {
-  if (!val) return ''
-  const d = val.toDate ? val.toDate() : new Date(val)
-  return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`
-}
+
 
 const getScoreClass = (sub) => {
   const score = getBestScore(sub)
