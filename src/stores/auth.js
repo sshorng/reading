@@ -7,8 +7,9 @@ export const useAuthStore = defineStore('auth', () => {
     const currentUser = ref(null)
     const allClasses = ref([])
 
-    // AI Configs (Teacher side)
-    const geminiApiKey = ref('')
+    // AI Configs
+    const teacherApiKey = ref('')
+    const studentApiKey = ref('')
     const teacherGeminiModel = ref('gemini-3-flash-preview')
     const studentGeminiModel = ref('gemini-2.5-flash-lite')
     const configLoaded = ref(false)
@@ -35,7 +36,8 @@ export const useAuthStore = defineStore('auth', () => {
 
             if (snap.exists()) {
                 const data = snap.data()
-                geminiApiKey.value = data.gemini || ''
+                teacherApiKey.value = data.gemini || '' // Fallback for old keys
+                studentApiKey.value = data.studentApiKey || ''
                 studentGeminiModel.value = data.model || 'gemini-2.5-flash-lite'
                 teacherGeminiModel.value = data.teacherModel || 'gemini-3-flash-preview'
             }
@@ -46,19 +48,21 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     /**
-     * 保存系統配置回資料庫 (匹配原版 settings/api_keys)
+     * 保存系統配置回資料庫
      */
-    async function saveSystemConfig(key, studentModel, teacherModel) {
+    async function saveSystemConfig(teacherKey, studentKey, studentModel, teacherModel) {
         try {
             const docRef = doc(db, 'settings', 'api_keys')
             await setDoc(docRef, {
-                gemini: key,
+                gemini: teacherKey, // Keep 'gemini' for backward compatibility of teacher key
+                studentApiKey: studentKey,
                 model: studentModel,
                 teacherModel: teacherModel,
                 updatedAt: new Date()
             }, { merge: true })
 
-            geminiApiKey.value = key
+            teacherApiKey.value = teacherKey
+            studentApiKey.value = studentKey
             studentGeminiModel.value = studentModel
             teacherGeminiModel.value = teacherModel
             return true
@@ -116,7 +120,8 @@ export const useAuthStore = defineStore('auth', () => {
     return {
         currentUser,
         allClasses,
-        geminiApiKey,
+        teacherApiKey,
+        studentApiKey,
         teacherGeminiModel,
         studentGeminiModel,
         configLoaded,

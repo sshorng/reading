@@ -11,9 +11,13 @@ export async function callGenerativeAI(prompt, modelOverride = null, schema = nu
         await authStore.fetchSystemConfig();
     }
 
-    const apiKey = authStore.geminiApiKey;
-    if (!apiKey) {
-        throw new Error("尚未設定 Gemini API 金鑰。");
+    let apiKey = '';
+    if (type === 'teacher') {
+        apiKey = authStore.teacherApiKey || authStore.geminiApiKey; // Fallback to old key if exists
+        if (!apiKey) throw new Error("尚未設定「教師端」Gemini API 金鑰，請至設定頁面填寫。");
+    } else {
+        apiKey = authStore.studentApiKey;
+        if (!apiKey) throw new Error("尚未設定「學生端」Gemini API 金鑰，請請老師至設定頁面填寫。");
     }
 
     const defaultModel = type === 'student' ? (authStore.studentGeminiModel || 'gemini-2.5-flash-lite') : (authStore.teacherGeminiModel || 'gemini-3-flash-preview');

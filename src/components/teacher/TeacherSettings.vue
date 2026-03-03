@@ -15,17 +15,31 @@
         
         <div class="space-y-4 bg-slate-50 p-6 rounded-2xl border border-slate-100">
           <div class="space-y-2">
-            <label class="text-sm font-bold text-slate-500 ml-1">Gemini API 金鑰</label>
+            <label class="text-sm font-bold text-slate-500 ml-1">教師端 Gemini API 金鑰 (高權限)</label>
             <div class="relative">
               <input 
-                v-model="config.apiKey" 
+                v-model="config.teacherApiKey" 
                 type="text"
                 autocomplete="off"
                 class="input-styled w-full font-mono text-sm"
-                placeholder="在此輸入您的 Gemini API Key"
+                placeholder="在此輸入教師專用的 Gemini API Key"
               >
             </div>
-            <p class="text-[10px] text-slate-400 mt-1 italic">此金鑰將被安全地儲存在您的 Firestore (settings/api_keys) 中。</p>
+            <p class="text-[10px] text-slate-400 mt-1 italic">此金鑰用於出題、生成篇章與深度解析，建議使用高額度金鑰。</p>
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-sm font-bold text-slate-500 ml-1">學生端 Gemini API 金鑰 (低權限)</label>
+            <div class="relative">
+              <input 
+                v-model="config.studentApiKey" 
+                type="text"
+                autocomplete="off"
+                class="input-styled w-full font-mono text-sm border-teal-200 focus:border-teal-500"
+                placeholder="在此輸入學生專用的 Gemini API Key (可省略)"
+              >
+            </div>
+            <p class="text-[10px] text-teal-600/80 mt-1 italic font-bold">此金鑰僅供前台學生與「閱讀小書僮」互動使用，建議使用免費層級以控管成本。</p>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-200/50">
@@ -61,7 +75,8 @@ const authStore = useAuthStore()
 const saving = ref(false)
 
 const config = ref({
-  apiKey: '',
+  teacherApiKey: '',
+  studentApiKey: '',
   studentModel: 'gemini-1.5-flash',
   teacherModel: 'gemini-1.5-pro'
 })
@@ -69,7 +84,7 @@ const config = ref({
 const saveConfig = async () => {
   saving.value = true
   try {
-    await authStore.saveSystemConfig(config.value.apiKey, config.value.studentModel, config.value.teacherModel)
+    await authStore.saveSystemConfig(config.value.teacherApiKey, config.value.studentApiKey, config.value.studentModel, config.value.teacherModel)
     alert('系統設定已成功同步至雲端。')
   } catch (err) {
     alert('保存失敗：' + err.message)
@@ -82,7 +97,8 @@ onMounted(async () => {
   if (!authStore.configLoaded) {
     await authStore.fetchSystemConfig()
   }
-  config.value.apiKey = authStore.geminiApiKey || ''
+  config.value.teacherApiKey = authStore.teacherApiKey || ''
+  config.value.studentApiKey = authStore.studentApiKey || ''
   config.value.studentModel = authStore.studentGeminiModel || 'gemini-1.5-flash'
   config.value.teacherModel = authStore.teacherGeminiModel || 'gemini-1.5-pro'
 })
