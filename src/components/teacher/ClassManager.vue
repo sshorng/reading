@@ -368,24 +368,7 @@ const copyOverdueList = async () => {
   }
 }
 
-const copyOverdueList = async () => {
-  if (overdueData.value.length === 0) return
-  
-  const lines = overdueData.value.map(stu => {
-    const taskTitles = stu.tasks.map(t => t.title).join('、')
-    return `${stu.seatNumber}號 ${stu.name} 尚未繳交：${taskTitles}`
-  })
-  
-  const textToCopy = `【書院課業逾期名單】\n${lines.join('\n')}`
-  
-  try {
-    await navigator.clipboard.writeText(textToCopy)
-    alert('逾期名單已複製到剪貼簿！')
-  } catch (err) {
-    console.error('Failed to copy text: ', err)
-    alert('複製失敗，請手動選取複製')
-  }
-}
+
 
 const viewStudentSubmissions = async (student) => {
   currentStudentDetail.value = student
