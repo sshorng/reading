@@ -23,8 +23,11 @@ jobs:
 
       - name: Install and Build 🔧
         run: |
-          npm install
+          node -v
+          npm -v
+          npm install --legacy-peer-deps
           npm run build
+          ls -R dist
 
       - name: Deploy 🚀
         uses: peaceiris/actions-gh-pages@v4
