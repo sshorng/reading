@@ -277,7 +277,7 @@ const clearDraft = () => {
 const handleGenerateTopicIdea = async () => {
   generatingTopicIdea.value = true
   try {
-    const idea = await generateTopicIdea(tags)
+    const idea = await generateTopicIdea(topic.value, tags)
     topic.value = idea
   } catch (err) {
     alert('靈感發想失敗：' + err.message)

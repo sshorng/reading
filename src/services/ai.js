@@ -199,15 +199,16 @@ ${difficultyInstruction}
 /**
  * 💡 AI 靈感發想（針對國中會考與素養導向）
  */
-export async function generateTopicIdea(tags) {
+export async function generateTopicIdea(topic, tags) {
     const formatReq = tags?.format ? `，文章形式要求包含「${tags.format}」元素` : '';
     const contentTypeReq = tags?.contentType ? `，文體偏好「${tags.contentType}」` : '';
     const difficultyReq = tags?.difficulty ? `，難度大約設定在「${tags.difficulty}」等級` : '';
 
     const prompt = `您是一位資深的台灣國中國文輔導團教師，擅長掌握「國中教育會考」的命題趨勢與 PISA 閱讀素養精神。
-您的任務是為國文老師隨機提供一個極具創意的「閱讀測驗寫作架構 Prompt」。這個架構將會交由另一個寫手 AI 來撰寫真正的文章。
+您的任務是為國文老師提供一個極具創意的「閱讀測驗寫作架構 Prompt」。這個架構將會交由另一個寫手 AI 來撰寫真正的文章。
 
-主題為：${topic}（如果為空，請自行發想，儘量多元，並與時事結合）
+主題方向：${topic ? `「${topic}」` : '（目前未指定，請由您發想一個與時事結合且具挑戰性的主題）'}
+※ 規則：如果已有主題方向，請在其基礎上進行提升與架構設計；如果主題方向為空，請自行發想，儘量多元，並與時事結合。
 
 **極重要規則：國中教育會考的選材極度多元。您每次的回覆必須「完全顛覆」上一次的風格與時空背景！**
 請從以下【會考常見題材與文本形式】中，**隨機且跳躍式地挑選**（絕對不要重複常見的今昔對比或夾敘夾議）：
