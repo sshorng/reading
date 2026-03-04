@@ -228,6 +228,7 @@ ${formatReq}${contentTypeReq}${difficultyReq}。
 核心主題與文本類型：
 語氣與視角：
 寫作手法與結構設計：
+    `;
 
     return await callGenerativeAI(prompt);
 }
@@ -253,15 +254,15 @@ export async function generateQuestionsFromText(title, article, tags) {
     請根據以下文本，設計出一份完全符合會考水準的 5 題單選題測驗。
     所有試題的難度應以「普通」難度作為基準。
 
-    文本標題：《${ title }》
+    文本標題：《${title}》
     文本內容：
-${ article }
+${article}
 
     請嚴格遵循以下命題規範：
-    1. ${ questionLevelInstruction }
+    1. ${questionLevelInstruction}
     2. ** 試題必須是素養導向的 **，旨在考驗學子的歸納、分析、批判與應用能力，而非僅是記憶。
     3. ** 試題必須是客觀題，答案能直接或間接從文本中找到，絕不可出現『你認為』、『你覺得』等開放式問句。**
-        4. ${ examStyleInstruction }
+        4. ${examStyleInstruction}
     5. ** 答題解析要求 **：每題的 explanation 必須包含：(1) 明確說明正確答案的原因並引用原文佐證(2) 逐一解釋其他三個選項為何錯誤
     6. ** 輸出限制 **：請嚴格返回 JSON 格式，不要包含 \`\`\`json 標籤外的任何廢話。`;
     const schema = {
