@@ -241,9 +241,13 @@ const filteredArticles = computed(() => {
   })
   
   list.sort((a, b) => {
-     const da = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0)
-     const db_ = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0)
-     return db_ - da
+    const getTime = (val) => {
+      if (!val) return 0
+      if (val.toMillis) return val.toMillis()
+      if (val.toDate) return val.toDate().getTime()
+      return new Date(val).getTime() || 0
+    }
+    return getTime(b.createdAt) - getTime(a.createdAt)
   })
   return list
 })

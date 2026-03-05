@@ -369,7 +369,7 @@ const saveAssignment = async () => {
       title: generatedResult.value.title,
       article: generatedResult.value.article,
       questions: questionsResponse.questions, // Store the newly generated questions here
-      tags: generatedResult.value.tags,
+      tags: questionsResponse.tags || generatedResult.value.tags,
       analysis: analysis,
       isPublic: isPublic.value,
       deadline: deadline.value ? Timestamp.fromDate(new Date(deadline.value + "T23:59:59")) : null,
