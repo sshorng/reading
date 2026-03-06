@@ -4,7 +4,7 @@
       <div>
         <h3 class="text-2xl font-bold text-gray-800 flex items-center gap-2 font-rounded">
           <span class="w-2 h-8 bg-red-800 rounded-full shadow-sm"></span>
-          勛章榮譽管領
+          成就管理
         </h3>
         <p class="text-sm text-gray-400 mt-1 italic">設爵頒賞，以勵後學。</p>
       </div>
@@ -79,7 +79,7 @@
         <div class="text-slate-200 mb-4">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" /></svg>
         </div>
-        <p class="text-slate-400 font-bold text-xl">目前書院尚未設立任何榮譽勳章。</p>
+        <p class="text-slate-400 font-bold text-xl">目前書院尚未設立任何成就。</p>
         <button @click="openNewModal" class="btn-secondary mt-6 py-2 px-8 text-sm">現在創設</button>
       </div>
     </div>

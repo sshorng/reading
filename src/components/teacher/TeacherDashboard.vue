@@ -99,7 +99,7 @@ const allClasses = computed(() => authStore.allClasses || [])
 const tabs = [
   { id: 'overview', label: '學堂概況' },
   { id: 'library', label: '篇章書庫' },
-  { id: 'achievement', label: '勳章管理' },
+  { id: 'achievement', label: '成就管理' },
   { id: 'settings', label: '系統設定' }
 ]
 

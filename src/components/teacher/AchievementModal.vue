@@ -5,7 +5,7 @@
       <div class="relative z-10 bg-white rounded-[2rem] w-full max-w-2xl flex flex-col shadow-2xl overflow-hidden animate-slide-up border border-gray-100">
          <div class="bg-slate-50/80 px-10 py-8 border-b flex justify-between items-center">
            <div>
-             <h3 class="text-2xl font-black text-gray-800">{{ isEditing ? '修訂勳章規律' : '創設勛爵體系' }}</h3>
+             <h3 class="text-2xl font-black text-gray-800">{{ isEditing ? '修訂成就規則' : '創設新成就' }}</h3>
              <p class="text-xs text-gray-400 mt-1 italic">依才定賞，AI 亦可助興生成。</p>
            </div>
            <button @click="closeModal" class="text-gray-300 hover:text-red-800 transition-colors">
@@ -184,7 +184,7 @@ const addCondition = () => form.value.conditions.push({ type: '', value: 0 })
 const removeCondition = (idx) => form.value.conditions.splice(idx, 1)
 
 const handleSave = async () => {
-  if (!form.value.name || !form.value.description) return alert('名號與描述為創設勛爵之必需。')
+  if (!form.value.name || !form.value.description) return alert('名號與描述為創設成就之必需。')
   saving.value = true
   try {
     if (props.isEditing) {
@@ -234,7 +234,7 @@ const autoGenerateAchievement = async () => {
 警告：絕對不可發明上列以外的 type 屬性！`;
         }
 
-        const prompt = `你是一位學識淵博、充滿想像力的書院總教習。請為學習系統設計一個充滿創意與文藝氣息的勳章成就。
+        const prompt = `你是一位學識淵博、充滿想像力的書院總教習。請為學習系統設計一個充滿創意與文藝氣息的成就。
 設定名號需優雅典雅，脫離呆板。描述應如古人策勵般動人，結尾括號中可以用一句白話文解釋條件。
 ${conditionPrompt}
 
