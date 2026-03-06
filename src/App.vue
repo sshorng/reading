@@ -6,9 +6,11 @@
     </div>
   </div>
   <router-view v-else />
+  <AchievementToast />
 </template>
 
 <script setup>
+import AchievementToast from './components/AchievementToast.vue'
 import { ref, onMounted } from 'vue'
 import { auth } from './firebase/init'
 import { signInAnonymously, signInWithCustomToken } from 'firebase/auth'

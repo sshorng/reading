@@ -60,6 +60,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useAppStore } from '../stores/app'
 import { fetchClasses, fetchStudentsByClass, loadStudentSubmissions } from '../services/api'
 import { calculateCompletionStreak, updateLoginStreak, checkAndAwardAchievements } from '../services/achievements'
 import { hashString, generateDefaultPassword } from '../utils/helpers'
@@ -69,6 +70,7 @@ import { db } from '../firebase/init'
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const appStore = useAppStore()
 
 const loading = ref(true)
 const classes = ref([])
@@ -176,14 +178,14 @@ const handleStudentLogin = async () => {
       }
 
       // 登入後主動檢查一次成就 (例如：連續登入、全打卡)
-      const unlocked = await checkAndAwardAchievements(
+      const awards = await checkAndAwardAchievements(
         selectedStudent.value,
         'login',
         authStore.currentUser,
         {}
       )
-      if (unlocked > 0) {
-        alert(`🏅 恭喜！您剛剛解鎖了 ${unlocked} 個新成就！點擊「我的成就」查看。`)
+      if (awards && awards.length > 0) {
+        awards.forEach(ach => appStore.pushAchievement(ach))
       }
     } catch (streakErr) {
       console.error('[Login] Streak/login/achievement calculation failed:', streakErr)

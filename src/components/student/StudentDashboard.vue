@@ -182,6 +182,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useDataStore } from '../../stores/data'
 import { useAuthStore } from '../../stores/auth'
+import { useAppStore } from '../../stores/app'
 import { getAssignments, loadStudentSubmissions, saveSubmission } from '../../services/api'
 import { checkAndAwardAchievements, calculateCompletionStreak, updateLoginStreak } from '../../services/achievements'
 import ArticleCard from './ArticleCard.vue'
@@ -193,6 +194,7 @@ import ChangePasswordModal from '../ChangePasswordModal.vue'
 
 const dataStore = useDataStore()
 const authStore = useAuthStore()
+const appStore = useAppStore()
 
 const currentTab = ref('articles') // this ref isn't really needed anymore but harmless to keep
 const showProfileModal = ref(false)
@@ -243,15 +245,15 @@ const handleArticleSubmit = async (data) => {
       }
 
       // 2. 執行成就檢查
-      const unlocked = await checkAndAwardAchievements(
+      const awards = await checkAndAwardAchievements(
         user.studentId,
         'quiz_submit',
         authStore.currentUser,
         { submissions: updatedSubmissions }
       )
       
-      if (unlocked > 0) {
-        alert(`🏅 恭喜！您剛剛解鎖了 ${unlocked} 個新成就！點擊「我的成就」查看。`)
+      if (awards && awards.length > 0) {
+        awards.forEach(ach => appStore.pushAchievement(ach))
       }
     } catch (err) {
       console.error('[Achievement] Post-submit sync failed:', err)
@@ -361,14 +363,14 @@ onMounted(async () => {
         }
 
         // 主動檢查成就 (包含每日登入成就)
-        const unlocked = await checkAndAwardAchievements(
+        const awards = await checkAndAwardAchievements(
           user.studentId,
           'dashboard_mount',
           authStore.currentUser,
           { submissions: dataStore.allSubmissions }
         )
-        if (unlocked > 0) {
-          alert(`🏅 恭喜！您剛剛解鎖了 ${unlocked} 個新成就！點擊「我的成就」查看。`)
+        if (awards && awards.length > 0) {
+          awards.forEach(ach => appStore.pushAchievement(ach))
         }
       } catch (err) {
         console.error('[Dashboard] Streak/login/achievement check failed:', err)

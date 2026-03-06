@@ -146,6 +146,7 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
         const unlockedQuery = query(collection(db, 'student_achievements'), where('studentId', '==', studentId))
         const unlockedSnapshot = await getDocs(unlockedQuery)
         const unlockedMap = new Map(unlockedSnapshot.docs.map(d => [d.data().achievementId, true]))
+        console.log(`[Achievement] Student ${studentId} has ${unlockedMap.size} unlocked records.`)
 
         // 依需要取得提交記錄
         let studentSubmissions = eventData.submissions || null
@@ -178,7 +179,9 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
         // 逐一檢查成就，收集待頒發的成就
         const pendingAwards = []
         for (const achievement of allAchievements) {
-            if (!achievement.isRepeatable && unlockedMap.has(achievement.id)) continue
+            const alreadyUnlocked = unlockedMap.has(achievement.id)
+            if (!achievement.isRepeatable && alreadyUnlocked) continue
+
             const conditions = achievement.conditions || []
             if (conditions.length === 0) continue
 
@@ -208,13 +211,13 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
                 console.log(`[Achievement] 🏅 Unlocked: "${achievement.name}" for ${studentData.name}`)
             }
             await batch.commit()
-            unlockedCount = pendingAwards.length
+            return pendingAwards
         }
     } catch (error) {
         console.error('[Achievement] Error checking achievements:', error)
     }
 
-    return unlockedCount
+    return []
 }
 
 // ─── 連續完成天數計算 ───

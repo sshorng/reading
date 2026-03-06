@@ -21,6 +21,13 @@ export const useAppStore = defineStore('app', () => {
         loadingMessage.value = ''
     }
 
+    const achievementQueue = ref([])
+    const isShowingAchievement = ref(false)
+
+    function pushAchievement(achievement) {
+        achievementQueue.value.push(achievement)
+    }
+
     return {
         currentView,
         isLoading,
@@ -28,7 +35,10 @@ export const useAppStore = defineStore('app', () => {
         geminiApiKey,
         geminiModel,
         teacherGeminiModel,
+        achievementQueue,
+        isShowingAchievement,
         showLoading,
-        hideLoading
+        hideLoading,
+        pushAchievement
     }
 })
