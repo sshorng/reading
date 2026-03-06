@@ -11,12 +11,29 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { auth } from './firebase/init'
-import { signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth'
+import { signInAnonymously, signInWithCustomToken } from 'firebase/auth'
+import { useAuthStore } from './stores/auth'
+import { loadStudentSubmissions } from './services/api'
 
 const isInitializing = ref(true)
+const authStore = useAuthStore()
 
 onMounted(async () => {
   try {
+    // 優先從持久化存儲恢復 (localStorage > sessionStorage)
+    const savedUser = localStorage.getItem('tempUser') || sessionStorage.getItem('tempUser')
+    if (savedUser) {
+      const userData = JSON.parse(savedUser)
+      authStore.setUser(userData)
+      // 持久化使用者也要載入他的提交紀錄
+      await loadStudentSubmissions(userData.studentId)
+    }
+
+    // 載入系統配置 (API Keys 等)
+    if (!authStore.configLoaded) {
+        await authStore.fetchSystemConfig()
+    }
+
     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
       await signInWithCustomToken(auth, __initial_auth_token)
     } else {

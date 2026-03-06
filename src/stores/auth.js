@@ -24,6 +24,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     function logout() {
         currentUser.value = null
+        localStorage.removeItem('tempUser')
     }
 
     /**

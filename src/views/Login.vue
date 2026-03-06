@@ -152,7 +152,7 @@ const handleStudentLogin = async () => {
     }
     
     authStore.setUser(userData)
-    sessionStorage.setItem('tempUser', JSON.stringify(userData))
+    localStorage.setItem('tempUser', JSON.stringify(userData))
 
     await loadStudentSubmissions(selectedStudent.value)
 
@@ -223,7 +223,7 @@ const handleTeacherLogin = async () => {
       }
       
       authStore.setUser(userData)
-      sessionStorage.setItem('tempUser', JSON.stringify(userData))
+      localStorage.setItem('tempUser', JSON.stringify(userData))
       
       await loadStudentSubmissions(userData.studentId)
       
