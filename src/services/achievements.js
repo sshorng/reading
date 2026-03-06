@@ -26,6 +26,16 @@ function getWeekId(date) {
     return `${y}-W${String(weekNum).padStart(2, '0')}`
 }
 
+function toValidDate(d) {
+    if (!d) return null;
+    if (d instanceof Date) return isNaN(d.getTime()) ? null : d;
+    // Handle Firebase Timestamp (both actual class and plain object from storage)
+    if (d.toDate && typeof d.toDate === 'function') return d.toDate();
+    if (typeof d.seconds === 'number') return new Date(d.seconds * 1000 + (d.nanoseconds || 0) / 1000000);
+    const date = new Date(d);
+    return isNaN(date.getTime()) ? null : date;
+}
+
 // ─── 成就檢查核心 ───
 
 /**
@@ -63,10 +73,10 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
             let daysEarly = 0
             let subDateObj = new Date()
             if (s.submittedAt) {
-                subDateObj = s.submittedAt.toDate ? s.submittedAt.toDate() : new Date(s.submittedAt)
+                subDateObj = toValidDate(s.submittedAt) || new Date()
                 if (assignment.dueDate) {
-                    const due = typeof assignment.dueDate === 'string' ? new Date(assignment.dueDate) : (assignment.dueDate.toDate ? assignment.dueDate.toDate() : new Date())
-                    daysEarly = (due - subDateObj) / (1000 * 60 * 60 * 24)
+                    const due = toValidDate(assignment.dueDate)
+                    if (due) daysEarly = (due - subDateObj) / (1000 * 60 * 60 * 24)
                 }
             }
 
@@ -230,10 +240,8 @@ export async function calculateCompletionStreak(studentId, studentData) {
     const updates = {}
     const todayStr = getLocalDateString(new Date())
 
-    const lastCheckDate = studentData.lastCompletionCheckDate
-    const lastCheckStr = (lastCheckDate && typeof lastCheckDate.toDate === 'function')
-        ? getLocalDateString(lastCheckDate.toDate())
-        : null
+    const lastCheckDate = toValidDate(studentData.lastCompletionCheckDate)
+    const lastCheckStr = lastCheckDate ? getLocalDateString(lastCheckDate) : null
 
     if (lastCheckStr === todayStr) {
         console.log('[Completion Streak] Check already performed today.')
@@ -282,14 +290,13 @@ export async function updateLoginStreak(studentId, studentData) {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    const lastLogin = studentData.lastLoginDate
-    const lastLoginDate = lastLogin?.toDate ? lastLogin.toDate() : (lastLogin ? new Date(lastLogin) : null)
+    const lastLoginDate = toValidDate(studentData.lastLoginDate)
 
     const updates = {}
     if (lastLoginDate) {
         lastLoginDate.setHours(0, 0, 0, 0)
         const diffDays = Math.round((today - lastLoginDate) / 86400000)
-        console.log(`[Streak] today: ${today.toISOString()}, lastLogin: ${lastLoginDate.toISOString()}, diffDays: ${diffDays}`)
+        console.log(`[Streak] today: ${today.toLocaleDateString()}, lastLogin: ${lastLoginDate.toLocaleDateString()}, diffDays: ${diffDays}`)
 
         if (diffDays === 1) {
             // 接續昨天的登入
