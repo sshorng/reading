@@ -264,9 +264,12 @@ ${conditionPrompt}
         form.value.name = data.name;
         form.value.description = data.description;
         form.value.icon = data.icon;
-        if (data.conditions && data.conditions.length > 0) {
+        
+        // 修正：如果夫子已經手動加了條件，不要讓 AI 覆蓋掉夫子的條件邏輯
+        if (!hasExistingConditions && data.conditions && data.conditions.length > 0) {
             form.value.conditions = data.conditions;
         }
+        
         alert(`AI 夫子諫言：\n${data.reasoning}`);
     } catch (e) {
         console.error(e)
