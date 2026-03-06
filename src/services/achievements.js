@@ -97,7 +97,7 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
         }
 
         const needsAssignments = filteredAchievements.some(ach => {
-            return (ach.conditions || []).some(c => c.type?.startsWith('read_tag_') || c.type === 'genre_explorer')
+            return (ach.conditions || []).some(c => c.type?.startsWith('read_tag_') || c.type === 'genre_explorer' || c.type === 'unique_formats_read' || c.type === 'days_before_deadline')
         })
 
         if (needsAssignments && !eventData.allAssignments) {
@@ -170,8 +170,10 @@ async function checkSingleCondition(condition, sData, evType, subs, evData) {
         let subDateObj = toValidDate(s.lastSubmittedAt || s.submittedAt) || new Date()
 
         let daysEarly = 0
-        if (assignment.dueDate) {
-            const due = toValidDate(assignment.dueDate)
+        // 修正：Firestore 中的欄位名是 deadline，不是 dueDate
+        const deadlineField = assignment.deadline || assignment.dueDate
+        if (deadlineField) {
+            const due = toValidDate(deadlineField)
             if (due) daysEarly = (due - subDateObj) / (1000 * 60 * 60 * 24)
         }
         const hour = subDateObj.getHours()
@@ -208,7 +210,7 @@ async function checkSingleCondition(condition, sData, evType, subs, evData) {
         },
         'speed_under_seconds': () => enhancedSubs.filter(s => s.passedDuration > 0 && s.passedDuration <= value && s.bestScore >= 60).length > 0,
         'duration_over_seconds': () => enhancedSubs.filter(s => s.passedDuration >= value && s.bestScore >= 60).length > 0,
-        'days_before_deadline': () => enhancedSubs.filter(s => s.daysEarly >= value).length > 0,
+        'days_before_deadline': () => enhancedSubs.filter(s => s.daysEarly >= value && s.bestScore >= 60).length > 0,
         'off_hours_count': () => enhancedSubs.filter(s => s.isOffHours && s.bestScore >= 60).length >= value
     }
 
