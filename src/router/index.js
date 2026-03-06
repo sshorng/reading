@@ -23,9 +23,9 @@ const router = createRouter({
 router.beforeEach((to, from) => {
     const authStore = useAuthStore()
 
-    // 嘗試恢復 session 登入狀態
+    // 嘗試恢復 session 登入狀態 (優先從 localStorage)
     if (!authStore.currentUser) {
-        const tempUser = sessionStorage.getItem('tempUser')
+        const tempUser = localStorage.getItem('tempUser') || sessionStorage.getItem('tempUser')
         if (tempUser) {
             authStore.setUser(JSON.parse(tempUser))
         }
@@ -35,6 +35,14 @@ router.beforeEach((to, from) => {
         return { name: 'Login', query: { redirect: to.fullPath } }
     } else if (to.name === 'Login' && authStore.currentUser) {
         return { name: 'Home' }
+    }
+})
+
+// 修復動態匯入失敗 (404) 的問題 - 常發生於 GitHub Pages 新版本部署時
+router.onError((error, to) => {
+    if (error.message.includes('Failed to fetch dynamically imported module') || error.message.includes('Importing a forbidden MIME type')) {
+        console.warn('[Router] Chunk loading failed. Reloading page to fetch latest assets.')
+        window.location.reload()
     }
 })
 
