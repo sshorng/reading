@@ -360,13 +360,16 @@ onMounted(async () => {
           console.log('[Dashboard] Updates:', allUpdates)
         }
 
-        // 主動檢查成就
-        await checkAndAwardAchievements(
+        // 主動檢查成就 (包含每日登入成就)
+        const unlocked = await checkAndAwardAchievements(
           user.studentId,
           'dashboard_mount',
           authStore.currentUser,
-          {}
+          { submissions: dataStore.allSubmissions }
         )
+        if (unlocked > 0) {
+          alert(`🏅 恭喜！您剛剛解鎖了 ${unlocked} 個新成就！點擊「我的成就」查看。`)
+        }
       } catch (err) {
         console.error('[Dashboard] Streak/login/achievement check failed:', err)
       }
