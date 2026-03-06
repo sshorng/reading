@@ -183,9 +183,10 @@ async function checkSingleCondition(condition, sData, evType, subs, evData) {
     })
 
     const STRATEGIES = {
-        'submission_count': () => enhancedSubs.length >= value,
-        'genre_explorer': () => new Set(enhancedSubs.map(s => s.assignment?.tags?.contentType).filter(Boolean)).size >= value,
-        'unique_formats_read': () => new Set(enhancedSubs.map(s => s.assignment?.tags?.format || '預設').filter(Boolean)).size >= value,
+        // 維度一：基礎與廣度
+        'submission_count': () => enhancedSubs.filter(s => s.bestScore >= 60).length >= value,
+        'genre_explorer': () => new Set(enhancedSubs.filter(s => s.bestScore >= 60).map(s => s.assignment?.tags?.contentType).filter(Boolean)).size >= value,
+        'unique_formats_read': () => new Set(enhancedSubs.filter(s => s.bestScore >= 60).map(s => s.assignment?.tags?.format || '預設').filter(Boolean)).size >= value,
         'high_score_streak': () => (sData.highScoreStreak || 0) >= value,
         'average_score': () => enhancedSubs.length > 0 && (enhancedSubs.reduce((acc, s) => acc + s.firstScore, 0) / enhancedSubs.length) >= value,
         'first_try_min_score': () => enhancedSubs.filter(s => s.firstScore >= value).length > 0,
@@ -208,13 +209,19 @@ async function checkSingleCondition(condition, sData, evType, subs, evData) {
         'speed_under_seconds': () => enhancedSubs.filter(s => s.passedDuration > 0 && s.passedDuration <= value && s.bestScore >= 60).length > 0,
         'duration_over_seconds': () => enhancedSubs.filter(s => s.passedDuration >= value && s.bestScore >= 60).length > 0,
         'days_before_deadline': () => enhancedSubs.filter(s => s.daysEarly >= value).length > 0,
-        'off_hours_count': () => enhancedSubs.filter(s => s.isOffHours).length >= value
+        'off_hours_count': () => enhancedSubs.filter(s => s.isOffHours && s.bestScore >= 60).length >= value
     }
 
     if (condition.type.startsWith('read_tag_')) {
         const isContentType = condition.type.startsWith('read_tag_contentType_')
         const tag = condition.type.replace(isContentType ? 'read_tag_contentType_' : 'read_tag_difficulty_', '')
-        return enhancedSubs.filter(s => isContentType ? (s.assignment?.tags?.contentType === tag) : (s.assignment?.tags?.difficulty === tag)).length >= value
+        // 修正：成就計算應僅包含「及格」的文章，否則作答進階文章即便 0 分也會解鎖成就
+        return enhancedSubs.filter(s => {
+            const matchesTag = isContentType
+                ? (s.assignment?.tags?.contentType === tag)
+                : (s.assignment?.tags?.difficulty === tag)
+            return matchesTag && s.bestScore >= 60
+        }).length >= value
     }
 
     return STRATEGIES[condition.type] ? STRATEGIES[condition.type]() : false
