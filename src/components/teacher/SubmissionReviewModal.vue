@@ -268,9 +268,14 @@ const renderAllMermaid = async (container) => {
     if (!definition) continue;
 
     try {
-      const uniqueId = `mermaid-svg-review-${Date.now()}-${i}`;
+      const uniqueId = `mermaid-svg-review-${Math.random().toString(36).substring(2, 9)}-${i}`;
       const { svg } = await mermaid.render(uniqueId, definition);
       el.innerHTML = svg;
+      const svgEl = el.querySelector('svg');
+      if (svgEl) {
+        svgEl.style.maxWidth = '100%';
+        svgEl.style.height = 'auto';
+      }
       el.setAttribute('data-processed', 'true');
     } catch (err) {
       console.warn('[Mermaid] Review render failed', err);
@@ -347,7 +352,9 @@ watch(() => props.isVisible, (val) => {
 
 watch(aiAnalysisResult, () => {
     if (aiAnalysisResult.value) {
-        nextTick(() => renderAllMermaid(analysisContentRef.value))
+        nextTick(() => {
+            setTimeout(() => renderAllMermaid(analysisContentRef.value), 100);
+        });
     }
 })
 

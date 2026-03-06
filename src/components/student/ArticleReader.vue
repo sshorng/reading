@@ -334,6 +334,9 @@ const renderAllMermaid = async (container) => {
 
   initializeMermaid();
 
+  // Ensure DOM is settled, especially on mobile/tablets
+  await new Promise(resolve => setTimeout(resolve, 50));
+  
   for (let i = 0; i < elements.length; i++) {
     const el = elements[i];
     let definition = rawTexts[i]
@@ -342,9 +345,14 @@ const renderAllMermaid = async (container) => {
     if (!definition) { showMermaidFallback(el, '圖表內容為空', ''); continue; }
 
     try {
-      const uniqueId = `mermaid-svg-${Date.now()}-${i}`;
+      const uniqueId = `mermaid-svg-${Math.random().toString(36).substring(2, 9)}-${i}`;
       const { svg } = await mermaid.render(uniqueId, definition);
       el.innerHTML = svg;
+      const svgEl = el.querySelector('svg');
+      if (svgEl) {
+        svgEl.style.maxWidth = '100%';
+        svgEl.style.height = 'auto';
+      }
       el.setAttribute('data-processed', 'true');
     } catch (err) {
       console.warn('[Mermaid] Client render failed, trying mermaid.ink...', err.message || err);
@@ -542,6 +550,8 @@ const removeHighlight = () => {
 const saveHighlights = () => {
   const html = document.getElementById('article-body')?.innerHTML;
   if (html) { localStorage.setItem(LOCAL_STORAGE_KEY.value, html); renderedArticleContent.value = html; }
+  // On mobile/tablets, force a re-render after saving highlights
+  nextTick(() => renderAllMermaid(document.getElementById('article-body')));
 }
 
 onMounted(() => {
@@ -561,8 +571,18 @@ onMounted(() => {
   }, { immediate: true });
 });
 
-watch(activeTab, (t) => { if (t === 'analysis') nextTick(() => renderAllMermaid(document.getElementById('analysis-body'))) });
-watch(renderedArticleContent, () => nextTick(() => renderAllMermaid(document.getElementById('article-body'))));
+watch(activeTab, (t) => { 
+  const containerId = t === 'analysis' ? 'analysis-body' : 'article-body';
+  nextTick(() => {
+    setTimeout(() => renderAllMermaid(document.getElementById(containerId)), 100);
+  });
+});
+
+watch(renderedArticleContent, () => {
+  nextTick(() => {
+    setTimeout(() => renderAllMermaid(document.getElementById('article-body')), 100);
+  });
+});
 
 const displayScore = computed(() => {
   if (isReviewing.value) {
@@ -595,9 +615,11 @@ onUnmounted(() => { stopTimer(); if (cooldownTimer) clearInterval(cooldownTimer)
 
 /* --- Mermaid Chart Theming (Restored from Backup) --- */
 :deep(.mermaid svg) {
-    height: auto;
+    max-width: 100% !important;
+    height: auto !important;
     display: block;
     margin: 0 auto;
+    overflow: visible !important;
 }
 
 /* --- Mindmap Hierarchical Styling --- */
