@@ -26,139 +26,64 @@ function getWeekId(date) {
     return `${y}-W${String(weekNum).padStart(2, '0')}`
 }
 
-// ─── 成就檢查核心 ───
+// ─── 事件與條件類別映射 ───
+const EVENT_CONDITION_MAP = {
+    'quiz_submit': [
+        'submission_count', 'genre_explorer', 'unique_formats_read',
+        'high_score_streak', 'average_score', 'first_try_min_score',
+        'perfect_score_count', 'recovery_count', 'min_retry_count',
+        'speed_under_seconds', 'duration_over_seconds', 'days_before_deadline', 'off_hours_count',
+        'read_tag_contentType_', 'read_tag_difficulty_'
+    ],
+    'login': ['login_streak', 'completion_streak', 'weekly_progress'],
+    'dashboard_mount': ['login_streak', 'completion_streak', 'weekly_progress']
+}
+
+// ─── 核心功能 ───
 
 /**
  * 檢查並自動頒發成就
- * @param {string} studentId   - 學生 ID
- * @param {string} eventType   - 觸發事件類型，例如 'quiz_submit'
- * @param {Object} studentData - 學生文件資料（含 classId, name 等）
- * @param {Object} eventData   - 額外事件資料（可選，含 submissions）
- * @returns {Promise<number>}  - 本次新解鎖的成就數量
  */
 export async function checkAndAwardAchievements(studentId, eventType, studentData, eventData = {}) {
     console.log(`[Achievement] Checking for ${studentData.name}, event: ${eventType}`)
-    if (!studentId || !studentData) return 0
-    let unlockedCount = 0
-
-    // 檢查單一條件
-    async function checkSingleCondition(condition, sData, evType, subs, evData) {
-        const value = parseInt(condition.value, 10)
-        if (condition.type !== 'weekly_progress' && isNaN(value)) return false
-
-        const allAssignments = evData.allAssignments || []
-        // == 預處理：統一增強版數據 ==
-        const enhancedSubs = (subs || []).map(s => {
-            const assignment = allAssignments.find(a => a.id === s.assignmentId) || {}
-            const attempts = s.attempts || []
-            const firstAttempt = attempts.length > 0 ? attempts[0] : s
-
-            const firstScore = firstAttempt.score || 0
-            const bestScore = attempts.length > 0 ? Math.max(...attempts.map(a => a.score)) : (s.score || 0)
-            const retryCount = Math.max(0, attempts.length - 1)
-
-            const firstPassedAttempt = attempts.find(a => a.score >= 60)
-            const passedDuration = firstPassedAttempt ? (firstPassedAttempt.durationSeconds || s.durationSeconds || 0) : (s.durationSeconds || 0)
-
-            let daysEarly = 0
-            let subDateObj = new Date()
-            if (s.submittedAt) {
-                subDateObj = toValidDate(s.submittedAt) || new Date()
-                if (assignment.dueDate) {
-                    const due = toValidDate(assignment.dueDate)
-                    if (due) daysEarly = (due - subDateObj) / (1000 * 60 * 60 * 24)
-                }
-            }
-
-            const hour = subDateObj.getHours()
-            // 深夜定義：23:00-04:59 (跨日判定)
-            const isOffHours = hour >= 23 || hour <= 4
-            if (isOffHours) console.log(`[Achievement] Night Owl detection: hour ${hour} matches off-hours.`)
-
-            return {
-                ...s, assignment, firstScore, bestScore, retryCount, passedDuration, daysEarly, isOffHours, subDateObj
-            }
-        })
-
-        const checkWeeklyProgress = () => {
-            const now = new Date()
-            const currentWeekId = getWeekId(now)
-            if (sData.lastProgressCheckWeekId === currentWeekId) return false
-            const studentRef = doc(db, `classes/${sData.classId}/students`, studentId)
-            updateDoc(studentRef, { lastProgressCheckWeekId: currentWeekId }).catch(console.error)
-
-            const startOfThisWeek = getStartOfWeek(now)
-            const startOfLastWeek = new Date(startOfThisWeek.getTime() - 7 * 24 * 60 * 60 * 1000)
-            const startOfPrevWeek = new Date(startOfLastWeek.getTime() - 7 * 24 * 60 * 60 * 1000)
-
-            const lastWeekTotal = enhancedSubs.filter(s => s.subDateObj >= startOfLastWeek && s.subDateObj < startOfThisWeek).reduce((sum, s) => sum + s.firstScore, 0)
-            const prevWeekTotal = enhancedSubs.filter(s => s.subDateObj >= startOfPrevWeek && s.subDateObj < startOfLastWeek).reduce((sum, s) => sum + s.firstScore, 0)
-            return lastWeekTotal > 0 && lastWeekTotal > prevWeekTotal
-        }
-
-        // == 策略註冊表 (Strategy Map) ==
-        const STRATEGIES = {
-            // 維度一：基礎與廣度
-            'submission_count': () => enhancedSubs.length >= value,
-            'genre_explorer': () => new Set(enhancedSubs.map(s => s.assignment?.tags?.contentType).filter(Boolean)).size >= value,
-            'unique_formats_read': () => new Set(enhancedSubs.map(s => s.assignment?.tags?.format || '預設').filter(Boolean)).size >= value,
-
-            // 維度二：精準與品質
-            'high_score_streak': () => (sData.highScoreStreak || 0) >= value,
-            'average_score': () => enhancedSubs.length > 0 && (enhancedSubs.reduce((acc, s) => acc + s.firstScore, 0) / enhancedSubs.length) >= value,
-            'first_try_min_score': () => enhancedSubs.filter(s => s.firstScore >= value).length > 0,
-
-            // 維度三：毅力與重修
-            'perfect_score_count': () => enhancedSubs.filter(s => s.bestScore >= 100).length >= value,
-            'recovery_count': () => enhancedSubs.filter(s => s.firstScore < 60 && s.bestScore >= 100).length >= value,
-            'min_retry_count': () => enhancedSubs.filter(s => s.retryCount >= value && s.bestScore >= 60).length > 0,
-
-            // 維度四：恆心與進階
-            'login_streak': () => (sData.loginStreak || 0) >= value,
-            'completion_streak': () => (sData.completionStreak || 0) >= value,
-            'weekly_progress': () => checkWeeklyProgress(),
-
-            // 維度五：作答效率與作息
-            'speed_under_seconds': () => enhancedSubs.filter(s => s.passedDuration > 0 && s.passedDuration <= value && s.bestScore >= 60).length > 0,
-            'duration_over_seconds': () => enhancedSubs.filter(s => s.passedDuration >= value && s.bestScore >= 60).length > 0,
-            'days_before_deadline': () => enhancedSubs.filter(s => s.daysEarly >= value).length > 0,
-            'off_hours_count': () => enhancedSubs.filter(s => s.isOffHours).length >= value
-        }
-
-        if (condition.type.startsWith('read_tag_')) {
-            const isContentType = condition.type.startsWith('read_tag_contentType_')
-            const tag = condition.type.replace(isContentType ? 'read_tag_contentType_' : 'read_tag_difficulty_', '')
-            const count = enhancedSubs.filter(s => isContentType ? (s.assignment?.tags?.contentType === tag) : (s.assignment?.tags?.difficulty === tag)).length
-            return count >= value
-        }
-
-        return STRATEGIES[condition.type] ? STRATEGIES[condition.type]() : false
-    }
+    if (!studentId || !studentData) return []
 
     try {
-        // 取得所有啟用中的成就
+        // 1. 取得所有啟用中的成就
         const achievementsQuery = query(collection(db, 'achievements'), where('isEnabled', '==', true))
         const achievementsSnapshot = await getDocs(achievementsQuery)
-        if (achievementsSnapshot.empty) return 0
+        if (achievementsSnapshot.empty) return []
         const allAchievements = achievementsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }))
 
-        // 取得已解鎖的成就
+        // 2. 取得已解鎖的成就
         const unlockedQuery = query(collection(db, 'student_achievements'), where('studentId', '==', studentId))
         const unlockedSnapshot = await getDocs(unlockedQuery)
         const unlockedMap = new Map(unlockedSnapshot.docs.map(d => [d.data().achievementId, true]))
-        console.log(`[Achievement] Student ${studentId} has ${unlockedMap.size} unlocked records.`)
 
-        // 依需要取得提交記錄
+        // 3. 根據事件類型過濾
+        const allowedConditions = EVENT_CONDITION_MAP[eventType] || []
+        const filteredAchievements = allAchievements.filter(ach => {
+            if (!ach.isRepeatable && unlockedMap.has(ach.id)) return false
+            const conditions = ach.conditions || []
+            return conditions.some(c => {
+                const type = c.type || ''
+                if (type.startsWith('read_tag_')) {
+                    const prefix = type.startsWith('read_tag_contentType_') ? 'read_tag_contentType_' : 'read_tag_difficulty_'
+                    return allowedConditions.includes(prefix)
+                }
+                return allowedConditions.includes(type)
+            })
+        })
+
+        if (filteredAchievements.length === 0) return []
+
+        // 4. 準備檢查所需資料
         let studentSubmissions = eventData.submissions || null
         if (studentSubmissions === null) {
-            const needsSubs = allAchievements.some(ach => {
-                if (!ach.isRepeatable && unlockedMap.has(ach.id)) return false
+            const needsSubs = filteredAchievements.some(ach => {
                 const conditions = ach.conditions || []
                 return conditions.some(c =>
-                    c.type?.includes('score') ||
-                    c.type === 'submission_count' ||
-                    c.type?.includes('tag') ||
-                    c.type === 'weekly_progress'
+                    c.type?.includes('count') || c.type?.includes('score') || c.type?.includes('tag') || c.type === 'weekly_progress'
                 )
             })
             if (needsSubs) {
@@ -166,8 +91,7 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
             }
         }
 
-        const needsAssignments = allAchievements.some(ach => {
-            if (!ach.isRepeatable && unlockedMap.has(ach.id)) return false
+        const needsAssignments = filteredAchievements.some(ach => {
             return (ach.conditions || []).some(c => c.type?.startsWith('read_tag_') || c.type === 'genre_explorer')
         })
 
@@ -176,27 +100,19 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
             eventData.allAssignments = await getAssignments()
         }
 
-        // 逐一檢查成就，收集待頒發的成就
+        // 5. 逐一檢查
         const pendingAwards = []
-        for (const achievement of allAchievements) {
-            const alreadyUnlocked = unlockedMap.has(achievement.id)
-            if (!achievement.isRepeatable && alreadyUnlocked) continue
-
+        for (const achievement of filteredAchievements) {
             const conditions = achievement.conditions || []
-            if (conditions.length === 0) continue
-
             let allMet = true
             for (const cond of conditions) {
                 const met = await checkSingleCondition(cond, studentData, eventType, studentSubmissions || [], eventData)
                 if (!met) { allMet = false; break }
             }
-
-            if (allMet) {
-                pendingAwards.push(achievement)
-            }
+            if (allMet) pendingAwards.push(achievement)
         }
 
-        // 批次寫入（減少 N 次網路來回為 1 次）
+        // 6. 批次寫入
         if (pendingAwards.length > 0) {
             const { writeBatch } = await import('firebase/firestore')
             const batch = writeBatch(db)
@@ -208,7 +124,7 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
                     unlockedAt: Timestamp.now(),
                     eventType
                 })
-                console.log(`[Achievement] 🏅 Unlocked: "${achievement.name}" for ${studentData.name}`)
+                console.log(`[Achievement] 🏅 Unlocked: "${achievement.name}"`)
             }
             await batch.commit()
             return pendingAwards
@@ -216,42 +132,90 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
     } catch (error) {
         console.error('[Achievement] Error checking achievements:', error)
     }
-
     return []
 }
 
-// ─── 連續完成天數計算 ───
-
 /**
- * 計算學生的連續完成天數（截止日前的作業是否都已完成）
- * @param {string} studentId   - 學生 ID
- * @param {Object} studentData - 學生文件資料
- * @returns {Promise<Object>}  - 需要更新的欄位
+ * 檢查單一條件
  */
-export async function calculateCompletionStreak(studentId, studentData) {
-    console.log(`[Completion Streak] Starting check for student ${studentId}`)
-    const updates = {}
-    const todayStr = getLocalDateString(new Date())
+async function checkSingleCondition(condition, sData, evType, subs, evData) {
+    const value = parseInt(condition.value, 10)
+    if (condition.type !== 'weekly_progress' && isNaN(value)) return false
 
-    const lastCheckDate = toValidDate(studentData.lastCompletionCheckDate)
-    const lastCheckStr = lastCheckDate ? getLocalDateString(lastCheckDate) : null
+    const allAssignments = evData.allAssignments || []
+    const enhancedSubs = (subs || []).map(s => {
+        const assignment = allAssignments.find(a => a.id === s.assignmentId) || {}
+        const attempts = s.attempts || []
+        const bestScore = attempts.length > 0 ? Math.max(...attempts.map(a => a.score)) : (s.score || 0)
+        const firstScore = attempts.length > 0 ? attempts[0].score : (s.score || 0)
+        const retryCount = Math.max(0, attempts.length - 1)
+        const firstPassedAttempt = attempts.find(a => a.score >= 60)
+        const passedDuration = firstPassedAttempt ? (firstPassedAttempt.durationSeconds || s.durationSeconds || 0) : (s.durationSeconds || 0)
 
-    if (lastCheckStr === todayStr) {
-        console.log('[Completion Streak] Check already performed today.')
-        return {}
+        let subDateObj = toValidDate(s.submittedAt) || new Date()
+        let daysEarly = 0
+        if (assignment.dueDate) {
+            const due = toValidDate(assignment.dueDate)
+            if (due) daysEarly = (due - subDateObj) / (1000 * 60 * 60 * 24)
+        }
+        const hour = subDateObj.getHours()
+        const isOffHours = hour >= 23 || hour <= 4
+
+        return { assignment, firstScore, bestScore, retryCount, passedDuration, daysEarly, isOffHours, subDateObj }
+    })
+
+    const STRATEGIES = {
+        'submission_count': () => enhancedSubs.length >= value,
+        'genre_explorer': () => new Set(enhancedSubs.map(s => s.assignment?.tags?.contentType).filter(Boolean)).size >= value,
+        'unique_formats_read': () => new Set(enhancedSubs.map(s => s.assignment?.tags?.format || '預設').filter(Boolean)).size >= value,
+        'high_score_streak': () => (sData.highScoreStreak || 0) >= value,
+        'average_score': () => enhancedSubs.length > 0 && (enhancedSubs.reduce((acc, s) => acc + s.firstScore, 0) / enhancedSubs.length) >= value,
+        'first_try_min_score': () => enhancedSubs.filter(s => s.firstScore >= value).length > 0,
+        'perfect_score_count': () => enhancedSubs.filter(s => s.bestScore >= 100).length >= value,
+        'recovery_count': () => enhancedSubs.filter(s => s.firstScore < 60 && s.bestScore >= 100).length >= value,
+        'min_retry_count': () => enhancedSubs.filter(s => s.retryCount >= value && s.bestScore >= 60).length > 0,
+        'login_streak': () => (sData.loginStreak || 0) >= value,
+        'completion_streak': () => (sData.completionStreak || 0) >= value,
+        'weekly_progress': () => {
+            const now = new Date()
+            const currentWeekId = getWeekId(now)
+            if (sData.lastProgressCheckWeekId === currentWeekId) return false
+            const startOfThisWeek = getStartOfWeek(now)
+            const startOfLastWeek = new Date(startOfThisWeek.getTime() - 7 * 24 * 60 * 60 * 1000)
+            const startOfPrevWeek = new Date(startOfLastWeek.getTime() - 7 * 24 * 60 * 60 * 1000)
+            const lastWeekTotal = enhancedSubs.filter(s => s.subDateObj >= startOfLastWeek && s.subDateObj < startOfThisWeek).reduce((sum, s) => sum + s.firstScore, 0)
+            const prevWeekTotal = enhancedSubs.filter(s => s.subDateObj >= startOfPrevWeek && s.subDateObj < startOfLastWeek).reduce((sum, s) => sum + s.firstScore, 0)
+            return lastWeekTotal > 0 && lastWeekTotal > prevWeekTotal
+        },
+        'speed_under_seconds': () => enhancedSubs.filter(s => s.passedDuration > 0 && s.passedDuration <= value && s.bestScore >= 60).length > 0,
+        'duration_over_seconds': () => enhancedSubs.filter(s => s.passedDuration >= value && s.bestScore >= 60).length > 0,
+        'days_before_deadline': () => enhancedSubs.filter(s => s.daysEarly >= value).length > 0,
+        'off_hours_count': () => enhancedSubs.filter(s => s.isOffHours).length >= value
     }
 
-    const yesterday = new Date()
-    yesterday.setDate(yesterday.getDate() - 1)
-    yesterday.setHours(23, 59, 59, 999)
+    if (condition.type.startsWith('read_tag_')) {
+        const isContentType = condition.type.startsWith('read_tag_contentType_')
+        const tag = condition.type.replace(isContentType ? 'read_tag_contentType_' : 'read_tag_difficulty_', '')
+        return enhancedSubs.filter(s => isContentType ? (s.assignment?.tags?.contentType === tag) : (s.assignment?.tags?.difficulty === tag)).length >= value
+    }
 
-    const assignmentsQuery = query(
-        collection(db, 'assignments'),
-        where('deadline', '<=', Timestamp.fromDate(yesterday))
-    )
+    return STRATEGIES[condition.type] ? STRATEGIES[condition.type]() : false
+}
+
+/**
+ * 計算學生的連續完成天數
+ */
+export async function calculateCompletionStreak(studentId, studentData) {
+    const updates = {}
+    const todayStr = getLocalDateString(new Date())
+    const lastCheckDate = toValidDate(studentData.lastCompletionCheckDate)
+    const lastCheckStr = lastCheckDate ? getLocalDateString(lastCheckDate) : null
+    if (lastCheckStr === todayStr) return {}
+
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1); yesterday.setHours(23, 59, 59, 999)
+    const assignmentsQuery = query(collection(db, 'assignments'), where('deadline', '<=', Timestamp.fromDate(yesterday)))
     const dueSnap = await getDocs(assignmentsQuery)
     const dueAssignments = dueSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-    console.log(`[Completion Streak] Found ${dueAssignments.length} assignments due by yesterday.`)
 
     if (dueAssignments.length === 0) {
         updates.lastCompletionCheckDate = Timestamp.now()
@@ -262,48 +226,26 @@ export async function calculateCompletionStreak(studentId, studentData) {
     const userSubmissionIds = new Set((userSubmissions || []).map(s => s.assignmentId))
     const allCompleted = dueAssignments.every(a => userSubmissionIds.has(a.id))
 
-    if (allCompleted) {
-        updates.completionStreak = (studentData.completionStreak || 0) + 1
-        console.log(`[Completion Streak] New streak: ${updates.completionStreak}`)
-    } else {
-        updates.completionStreak = 0
-        console.log('[Completion Streak] Not all completed. Streak reset.')
-    }
-
+    updates.completionStreak = allCompleted ? (studentData.completionStreak || 0) + 1 : 0
     updates.lastCompletionCheckDate = Timestamp.now()
     return updates
 }
+
 /**
  * 更新學生的連續登入天數
- * @param {string} studentId 
- * @param {Object} studentData 
- * @returns {Promise<Object>} 需要更新的欄位 (若無則回傳空物件)
  */
 export async function updateLoginStreak(studentId, studentData) {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
+    const today = new Date(); today.setHours(0, 0, 0, 0)
     const lastLoginDate = toValidDate(studentData.lastLoginDate)
+    const updates = { lastLoginDate: new Date() }
 
-    const updates = {}
     if (lastLoginDate) {
         lastLoginDate.setHours(0, 0, 0, 0)
         const diffDays = Math.round((today - lastLoginDate) / 86400000)
-        console.log(`[Streak] today: ${today.toLocaleDateString()}, lastLogin: ${lastLoginDate.toLocaleDateString()}, diffDays: ${diffDays}`)
-
-        if (diffDays === 1) {
-            // 接續昨天的登入
-            updates.loginStreak = (studentData.loginStreak || 0) + 1
-        } else if (diffDays > 1) {
-            // 斷掉，重起爐灶
-            updates.loginStreak = 1
-        }
-        // diffDays === 0 代表當天重複登入，無需更新計數
+        if (diffDays === 1) updates.loginStreak = (studentData.loginStreak || 0) + 1
+        else if (diffDays > 1) updates.loginStreak = 1
     } else {
-        // 首次登入
         updates.loginStreak = 1
     }
-
-    updates.lastLoginDate = new Date()
     return updates
 }
