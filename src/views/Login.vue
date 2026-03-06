@@ -61,7 +61,7 @@ import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { fetchClasses, fetchStudentsByClass, loadStudentSubmissions } from '../services/api'
-import { calculateCompletionStreak, updateLoginStreak } from '../services/achievements'
+import { calculateCompletionStreak, updateLoginStreak, checkAndAwardAchievements } from '../services/achievements'
 import { hashString, generateDefaultPassword } from '../utils/helpers'
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase/init'
@@ -174,8 +174,16 @@ const handleStudentLogin = async () => {
         Object.assign(authStore.currentUser, updates)
         console.log('[Login] Updates:', updates)
       }
+
+      // 登入後主動檢查一次成就 (例如：連續登入、全打卡)
+      await checkAndAwardAchievements(
+        selectedStudent.value,
+        'login',
+        authStore.currentUser,
+        {}
+      )
     } catch (streakErr) {
-      console.error('[Login] Streak/login calculation failed:', streakErr)
+      console.error('[Login] Streak/login/achievement calculation failed:', streakErr)
     }
 
     const redirectPath = route.query.redirect || '/'

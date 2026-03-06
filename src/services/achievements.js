@@ -73,6 +73,7 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
             const hour = subDateObj.getHours()
             // 深夜定義：23:00-04:59 (跨日判定)
             const isOffHours = hour >= 23 || hour <= 4
+            if (isOffHours) console.log(`[Achievement] Night Owl detection: hour ${hour} matches off-hours.`)
 
             return {
                 ...s, assignment, firstScore, bestScore, retryCount, passedDuration, daysEarly, isOffHours, subDateObj
@@ -288,6 +289,7 @@ export async function updateLoginStreak(studentId, studentData) {
     if (lastLoginDate) {
         lastLoginDate.setHours(0, 0, 0, 0)
         const diffDays = Math.round((today - lastLoginDate) / 86400000)
+        console.log(`[Streak] today: ${today.toISOString()}, lastLogin: ${lastLoginDate.toISOString()}, diffDays: ${diffDays}`)
 
         if (diffDays === 1) {
             // 接續昨天的登入

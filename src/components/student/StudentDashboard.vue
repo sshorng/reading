@@ -183,7 +183,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useDataStore } from '../../stores/data'
 import { useAuthStore } from '../../stores/auth'
 import { getAssignments, loadStudentSubmissions, saveSubmission } from '../../services/api'
-import { checkAndAwardAchievements, calculateCompletionStreak } from '../../services/achievements'
+import { checkAndAwardAchievements, calculateCompletionStreak, updateLoginStreak } from '../../services/achievements'
 import ArticleCard from './ArticleCard.vue'
 import CalendarWidget from './CalendarWidget.vue'
 import ArticleReader from './ArticleReader.vue'
@@ -359,8 +359,16 @@ onMounted(async () => {
           Object.assign(authStore.currentUser, allUpdates)
           console.log('[Dashboard] Updates:', allUpdates)
         }
+
+        // 主動檢查成就
+        await checkAndAwardAchievements(
+          user.studentId,
+          'dashboard_mount',
+          authStore.currentUser,
+          {}
+        )
       } catch (err) {
-        console.error('[Dashboard] Streak/login check failed:', err)
+        console.error('[Dashboard] Streak/login/achievement check failed:', err)
       }
   }
   // Fetch assignments on mount
