@@ -33,7 +33,8 @@ const EVENT_CONDITION_MAP = {
         'high_score_streak', 'average_score', 'first_try_min_score',
         'perfect_score_count', 'recovery_count', 'min_retry_count',
         'speed_under_seconds', 'duration_over_seconds', 'days_before_deadline', 'off_hours_count',
-        'read_tag_contentType_', 'read_tag_difficulty_'
+        'read_tag_contentType_', 'read_tag_difficulty_',
+        'login_streak', 'completion_streak', 'weekly_progress' // 交卷也可能達成天數成就
     ],
     'login': ['login_streak', 'completion_streak', 'weekly_progress'],
     'dashboard_mount': ['login_streak', 'completion_streak', 'weekly_progress']
@@ -59,6 +60,7 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
         const unlockedQuery = query(collection(db, 'student_achievements'), where('studentId', '==', studentId))
         const unlockedSnapshot = await getDocs(unlockedQuery)
         const unlockedMap = new Map(unlockedSnapshot.docs.map(d => [d.data().achievementId, true]))
+        console.log(`[Achievement] Current unlocked count: ${unlockedMap.size}`)
 
         // 3. 根據事件類型過濾
         const allowedConditions = EVENT_CONDITION_MAP[eventType] || []
@@ -75,7 +77,10 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
             })
         })
 
-        if (filteredAchievements.length === 0) return []
+        if (filteredAchievements.length === 0) {
+            console.log('[Achievement] No relevant new achievements to check for this event.')
+            return []
+        }
 
         // 4. 準備檢查所需資料
         let studentSubmissions = eventData.submissions || null
@@ -105,11 +110,20 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
         for (const achievement of filteredAchievements) {
             const conditions = achievement.conditions || []
             let allMet = true
+            console.log(`[Achievement] Testing: "${achievement.name}"`)
             for (const cond of conditions) {
                 const met = await checkSingleCondition(cond, studentData, eventType, studentSubmissions || [], eventData)
-                if (!met) { allMet = false; break }
+                if (!met) {
+                    console.log(`  - Condition failed: ${cond.type} (val:${cond.value})`)
+                    allMet = false;
+                    break
+                }
+                console.log(`  + Condition met: ${cond.type}`)
             }
-            if (allMet) pendingAwards.push(achievement)
+            if (allMet) {
+                console.log(`[Achievement] 🎉 ALL CONDITIONS MET for "${achievement.name}"`)
+                pendingAwards.push(achievement)
+            }
         }
 
         // 6. 批次寫入
@@ -152,7 +166,9 @@ async function checkSingleCondition(condition, sData, evType, subs, evData) {
         const firstPassedAttempt = attempts.find(a => a.score >= 60)
         const passedDuration = firstPassedAttempt ? (firstPassedAttempt.durationSeconds || s.durationSeconds || 0) : (s.durationSeconds || 0)
 
-        let subDateObj = toValidDate(s.submittedAt) || new Date()
+        // 修正：使用 lastSubmittedAt (最新繳卷時間) 來判定深夜作答，而非首次開始時間
+        let subDateObj = toValidDate(s.lastSubmittedAt || s.submittedAt) || new Date()
+
         let daysEarly = 0
         if (assignment.dueDate) {
             const due = toValidDate(assignment.dueDate)
@@ -161,7 +177,9 @@ async function checkSingleCondition(condition, sData, evType, subs, evData) {
         const hour = subDateObj.getHours()
         const isOffHours = hour >= 23 || hour <= 4
 
-        return { assignment, firstScore, bestScore, retryCount, passedDuration, daysEarly, isOffHours, subDateObj }
+        const res = { assignment, firstScore, bestScore, retryCount, passedDuration, daysEarly, isOffHours, subDateObj }
+        // console.log(`  [Subs-Check] Title: ${assignment.title}, FirstScore: ${firstScore}, isOffHours: ${isOffHours}`)
+        return res
     })
 
     const STRATEGIES = {
