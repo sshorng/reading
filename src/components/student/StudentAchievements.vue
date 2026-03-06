@@ -104,6 +104,7 @@ import { collection, query, where, getDocs, orderBy } from 'firebase/firestore'
 import { db } from '../../firebase/init'
 import { useAuthStore } from '../../stores/auth'
 import { useDataStore } from '../../stores/data'
+import { toValidDate } from '../../utils/helpers'
 
 const authStore = useAuthStore()
 const dataStore = useDataStore()
@@ -226,10 +227,10 @@ const calculateProgress = (ach) => {
         let daysEarly = 0
         let subDateObj = new Date()
         if (s.submittedAt) {
-            subDateObj = s.submittedAt.toDate ? s.submittedAt.toDate() : new Date(s.submittedAt)
+            subDateObj = toValidDate(s.submittedAt) || new Date()
             if (assignment.dueDate) {
-                const due = typeof assignment.dueDate === 'string' ? new Date(assignment.dueDate) : (assignment.dueDate.toDate ? assignment.dueDate.toDate() : new Date())
-                daysEarly = (due - subDateObj) / (1000 * 60 * 60 * 24)
+                const due = toValidDate(assignment.dueDate)
+                if (due) daysEarly = (due - subDateObj) / (1000 * 60 * 60 * 24)
             }
         }
         const hour = subDateObj.getHours()

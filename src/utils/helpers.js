@@ -37,10 +37,25 @@ export function formatTime(seconds) {
 }
 
 export function getLocalDateString(date) {
-    if (!date) return '';
+    if (!date || isNaN(date.getTime())) return '';
     const tzOffset = date.getTimezoneOffset() * 60000;
     const localISOTime = (new Date(date.getTime() - tzOffset)).toISOString().slice(0, -1);
     return localISOTime.split('T')[0];
+}
+
+export function toValidDate(d) {
+    if (!d) return null;
+    let date = null;
+    if (d instanceof Date) {
+        date = d;
+    } else if (d.toDate && typeof d.toDate === 'function') {
+        date = d.toDate();
+    } else if (typeof d.seconds === 'number') {
+        date = new Date(d.seconds * 1000 + (d.nanoseconds || 0) / 1000000);
+    } else {
+        date = new Date(d);
+    }
+    return (date && !isNaN(date.getTime())) ? date : null;
 }
 
 export function formatSubmissionTime(dateString) {

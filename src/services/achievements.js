@@ -4,7 +4,7 @@
 import { collection, query, where, getDocs, doc, addDoc, updateDoc, Timestamp, orderBy } from 'firebase/firestore'
 import { db } from '../firebase/init'
 import { loadStudentSubmissions } from './api'
-import { getLocalDateString } from '../utils/helpers'
+import { getLocalDateString, toValidDate } from '../utils/helpers'
 
 // ─── 輔助函式 ───
 
@@ -24,16 +24,6 @@ function getWeekId(date) {
     const pastDays = (startOfWeek - firstDay) / 86400000
     const weekNum = Math.ceil((pastDays + firstDay.getDay() + 1) / 7)
     return `${y}-W${String(weekNum).padStart(2, '0')}`
-}
-
-function toValidDate(d) {
-    if (!d) return null;
-    if (d instanceof Date) return isNaN(d.getTime()) ? null : d;
-    // Handle Firebase Timestamp (both actual class and plain object from storage)
-    if (d.toDate && typeof d.toDate === 'function') return d.toDate();
-    if (typeof d.seconds === 'number') return new Date(d.seconds * 1000 + (d.nanoseconds || 0) / 1000000);
-    const date = new Date(d);
-    return isNaN(date.getTime()) ? null : date;
 }
 
 // ─── 成就檢查核心 ───
