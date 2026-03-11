@@ -59,7 +59,12 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
         // 2. 取得已解鎖的成就
         const unlockedQuery = query(collection(db, 'student_achievements'), where('studentId', '==', studentId))
         const unlockedSnapshot = await getDocs(unlockedQuery)
-        const unlockedMap = new Map(unlockedSnapshot.docs.map(d => [d.data().achievementId, true]))
+        // 修復：計算該成就已被領取的總次數，而非只記 true/false
+        const unlockedMap = new Map()
+        unlockedSnapshot.docs.forEach(d => {
+            const id = d.data().achievementId
+            unlockedMap.set(id, (unlockedMap.get(id) || 0) + 1)
+        })
         console.log(`[Achievement] Current unlocked count: ${unlockedMap.size}`)
 
         // 3. 根據事件類型過濾
@@ -103,8 +108,12 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
             const conditions = achievement.conditions || []
             let allMet = true
             console.log(`[Achievement] Testing: "${achievement.name}"`)
+            
+            // 取得已領取次數，用於累進難度計算
+            const unlockCount = unlockedMap.get(achievement.id) || 0
+
             for (const cond of conditions) {
-                const met = await checkSingleCondition(cond, studentData, eventType, studentSubmissions || [], eventData)
+                const met = await checkSingleCondition(cond, studentData, eventType, studentSubmissions || [], eventData, unlockCount)
                 if (!met) {
                     console.log(`  - Condition failed: ${cond.type} (val:${cond.value})`)
                     allMet = false;
@@ -115,6 +124,8 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
             if (allMet) {
                 console.log(`[Achievement] 🎉 ALL CONDITIONS MET for "${achievement.name}"`)
                 pendingAwards.push(achievement)
+                // 暫時增加此成就的計算次數，以防同一次判斷中多個條件都依賴它（雖然目前沒這種設計）
+                unlockedMap.set(achievement.id, unlockCount + 1)
             }
         }
 
@@ -172,9 +183,22 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
 /**
  * 檢查單一條件
  */
-async function checkSingleCondition(condition, sData, evType, subs, evData) {
-    const value = parseInt(condition.value, 10)
-    if (condition.type !== 'weekly_progress' && isNaN(value)) return false
+async function checkSingleCondition(condition, sData, evType, subs, evData, unlockCount = 0) {
+    const baseValue = parseInt(condition.value, 10)
+    if (condition.type !== 'weekly_progress' && isNaN(baseValue)) return false
+    
+    // 只有「數量累計型」才套用階梯式難度 (累積次數 * 基準值)，
+    // 時間門檻、單次達標型則不變，因為它們的 value 是「標準」，而不是「累計次數」
+    const progressiveTypes = [
+        'submission_count', 'genre_explorer', 'unique_formats_read',
+        'high_score_streak', 'perfect_score_count', 'recovery_count', 
+        'login_streak', 'completion_streak', 'off_hours_count'
+    ]
+    const isTagCount = condition.type.startsWith('read_tag_')
+    
+    const value = (progressiveTypes.includes(condition.type) || isTagCount) 
+        ? baseValue * (unlockCount + 1) 
+        : baseValue
 
     const allAssignments = evData.allAssignments || []
     const enhancedSubs = (subs || []).map(s => {
@@ -211,10 +235,16 @@ async function checkSingleCondition(condition, sData, evType, subs, evData) {
         'unique_formats_read': () => new Set(enhancedSubs.filter(s => s.bestScore >= 60).map(s => s.assignment?.tags?.format || '預設').filter(Boolean)).size >= value,
         'high_score_streak': () => (sData.highScoreStreak || 0) >= value,
         'average_score': () => enhancedSubs.length > 0 && (enhancedSubs.reduce((acc, s) => acc + s.firstScore, 0) / enhancedSubs.length) >= value,
-        'first_try_min_score': () => enhancedSubs.filter(s => s.firstScore >= value).length > 0,
+        
+        // 單篇達標型（如果可重複領取，則統計達標的總篇數 >= 應領取總量）
+        'first_try_min_score': () => enhancedSubs.filter(s => s.firstScore >= value).length >= (unlockCount + 1),
+        'min_retry_count': () => enhancedSubs.filter(s => s.retryCount >= value && s.bestScore >= 60).length >= (unlockCount + 1),
+        'speed_under_seconds': () => enhancedSubs.filter(s => s.passedDuration > 0 && s.passedDuration <= value && s.bestScore >= 60).length >= (unlockCount + 1),
+        'duration_over_seconds': () => enhancedSubs.filter(s => s.passedDuration >= value && s.bestScore >= 60).length >= (unlockCount + 1),
+        'days_before_deadline': () => enhancedSubs.filter(s => s.daysEarly >= value && s.bestScore >= 60).length >= (unlockCount + 1),
+
         'perfect_score_count': () => enhancedSubs.filter(s => s.bestScore >= 100).length >= value,
         'recovery_count': () => enhancedSubs.filter(s => s.firstScore < 60 && s.bestScore >= 100).length >= value,
-        'min_retry_count': () => enhancedSubs.filter(s => s.retryCount >= value && s.bestScore >= 60).length > 0,
         'login_streak': () => (sData.loginStreak || 0) >= value,
         'completion_streak': () => (sData.completionStreak || 0) >= value,
         'weekly_progress': () => {
@@ -228,9 +258,6 @@ async function checkSingleCondition(condition, sData, evType, subs, evData) {
             const prevWeekTotal = enhancedSubs.filter(s => s.subDateObj >= startOfPrevWeek && s.subDateObj < startOfLastWeek).reduce((sum, s) => sum + s.firstScore, 0)
             return lastWeekTotal > 0 && lastWeekTotal > prevWeekTotal
         },
-        'speed_under_seconds': () => enhancedSubs.filter(s => s.passedDuration > 0 && s.passedDuration <= value && s.bestScore >= 60).length > 0,
-        'duration_over_seconds': () => enhancedSubs.filter(s => s.passedDuration >= value && s.bestScore >= 60).length > 0,
-        'days_before_deadline': () => enhancedSubs.filter(s => s.daysEarly >= value && s.bestScore >= 60).length > 0,
         'off_hours_count': () => enhancedSubs.filter(s => s.isOffHours && s.bestScore >= 60).length >= value
     }
 
