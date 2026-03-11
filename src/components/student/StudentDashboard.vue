@@ -227,7 +227,7 @@ const handleArticleSubmit = async (data) => {
   await fetchPendingAssignments()
 
   const user = authStore.currentUser
-  if (user?.type === 'student' && user.studentId) {
+  if (user?.studentId) {
     try {
       // 1. 同步處理跨午夜可能的紀錄更新
       const allUpdates = {}
