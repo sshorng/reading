@@ -29,6 +29,7 @@ export async function saveSubmission(submissionData) {
                 score: Math.max(docSnap.data().score || 0, score),
                 lastSubmittedAt: serverTimestamp()
             })
+            // 重考同一篇文章：不影響連續高分 streak
         } else {
             await setDoc(submissionRef, {
                 studentId,
@@ -40,16 +41,16 @@ export async function saveSubmission(submissionData) {
                 submittedAt: serverTimestamp(),
                 lastSubmittedAt: serverTimestamp()
             })
-        }
 
-        // 高分連續次數更新 (分數 >= 80)
-        const studentRef = doc(db, `classes/${authStore.currentUser.classId}/students`, studentId)
-        const studentSnap = await getDoc(studentRef)
-        if (studentSnap.exists()) {
-            const studentData = studentSnap.data()
-            const newHighScoreStreak = score >= 80 ? (studentData.highScoreStreak || 0) + 1 : 0
-            await updateDoc(studentRef, { highScoreStreak: newHighScoreStreak })
-            authStore.currentUser.highScoreStreak = newHighScoreStreak
+            // 高分連續次數更新 — 僅首次作答時才計算
+            const studentRef = doc(db, `classes/${authStore.currentUser.classId}/students`, studentId)
+            const studentSnap = await getDoc(studentRef)
+            if (studentSnap.exists()) {
+                const studentData = studentSnap.data()
+                const newHighScoreStreak = score >= 80 ? (studentData.highScoreStreak || 0) + 1 : 0
+                await updateDoc(studentRef, { highScoreStreak: newHighScoreStreak })
+                authStore.currentUser.highScoreStreak = newHighScoreStreak
+            }
         }
 
         // Refresh local store

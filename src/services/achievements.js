@@ -82,18 +82,10 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
             return []
         }
 
-        // 4. 準備檢查所需資料
+        // 4. 準備檢查所需資料（簡化：只要有待檢查成就就載入 submissions）
         let studentSubmissions = eventData.submissions || null
         if (studentSubmissions === null) {
-            const needsSubs = filteredAchievements.some(ach => {
-                const conditions = ach.conditions || []
-                return conditions.some(c =>
-                    c.type?.includes('count') || c.type?.includes('score') || c.type?.includes('tag') || c.type === 'weekly_progress'
-                )
-            })
-            if (needsSubs) {
-                studentSubmissions = await loadStudentSubmissions(studentId)
-            }
+            studentSubmissions = await loadStudentSubmissions(studentId)
         }
 
         const needsAssignments = filteredAchievements.some(ach => {
@@ -194,7 +186,7 @@ async function checkSingleCondition(condition, sData, evType, subs, evData) {
             if (due) daysEarly = (due - subDateObj) / (1000 * 60 * 60 * 24)
         }
         const hour = subDateObj.getHours()
-        const isOffHours = hour >= 23 || hour <= 4
+        const isOffHours = hour >= 22 || hour <= 5
 
         const res = { assignment, firstScore, bestScore, retryCount, passedDuration, daysEarly, isOffHours, subDateObj }
         // console.log(`  [Subs-Check] Title: ${assignment.title}, FirstScore: ${firstScore}, isOffHours: ${isOffHours}`)
