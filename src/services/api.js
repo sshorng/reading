@@ -27,7 +27,7 @@ export async function saveSubmission(submissionData) {
             await updateDoc(submissionRef, {
                 attempts: arrayUnion(attempt),
                 score: Math.max(docSnap.data().score || 0, score),
-                lastSubmittedAt: serverTimestamp()
+                lastSubmittedAt: attempt.submittedAt
             })
             // 重考同一篇文章：不影響連續高分 streak
         } else {
@@ -38,8 +38,8 @@ export async function saveSubmission(submissionData) {
                 answers, // Latest answers
                 durationSeconds, // Latest duration
                 attempts: [attempt],
-                submittedAt: serverTimestamp(),
-                lastSubmittedAt: serverTimestamp()
+                submittedAt: attempt.submittedAt,
+                lastSubmittedAt: attempt.submittedAt
             })
 
             // 高分連續次數更新 — 僅首次作答時才計算
