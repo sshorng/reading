@@ -2,8 +2,13 @@ import { useAuthStore } from '../stores/auth';
 
 /**
  * 核心 AI 調用函數
+ * @param {string} prompt 
+ * @param {string|null} modelOverride 
+ * @param {object|null} schema 
+ * @param {string} type 'teacher' 或 'student'
+ * @param {number} temperature 創意發想時可調高，預設 0.5 維持試煉穩定度
  */
-export async function callGenerativeAI(prompt, modelOverride = null, schema = null, type = 'teacher') {
+export async function callGenerativeAI(prompt, modelOverride = null, schema = null, type = 'teacher', temperature = 0.5) {
     const authStore = useAuthStore();
 
     // 確保配置已載入
@@ -31,7 +36,7 @@ export async function callGenerativeAI(prompt, modelOverride = null, schema = nu
     const API_URL = `https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent?key=${apiKey}`;
 
     const generationConfig = {
-        temperature: 0.5,
+        temperature: temperature,
         topK: 1,
         topP: 1,
         maxOutputTokens: 8192,
@@ -209,12 +214,28 @@ export async function generateTopicIdea(topic, tags) {
     const contentTypeReq = tags?.contentType ? `，文體偏好「${tags.contentType}」` : '';
     const difficultyReq = tags?.difficulty ? `，難度約在「${tags.difficulty}」` : '';
 
+    // 🔥 隨機「軟性切入點」(Soft Random Seed)：破除 LLM 每次都講科技冷漠的死板慣性
+    const randomAngles = [
+        "社會階級與資源分配的隱形角落",
+        "流行次文化(動漫、迷因)背後的心理學",
+        "大腦陷阱與行為經濟學的日常體現",
+        "科技發展與人際邊界的模糊地帶",
+        "歷史事件在現代社會的荒謬重演",
+        "自然生態法則對人類社會的微觀啟示",
+        "日常物品背後的設計哲學與文化霸權",
+        "跨國文化對於『時間』與『空間』的異度理解",
+        "當代媒體與眼球經濟下的『真實』定義",
+        "性別、年齡或族群刻板印象的微歧視現象"
+    ];
+    const pickedAngle = randomAngles[Math.floor(Math.random() * randomAngles.length)];
+
     const prompt = `你是一位為國中生設計 PISA 閱讀理解文本的專欄作家，寫作風格對標台灣的「品學堂 (Wisdomhall)」。
 你擅長觀察日常生活、跨國文化、社會現象、自然科普或媒體識讀，從微觀現象中提煉出值得深思的多元議題，文章不著痕跡地傳達素養與洞見，絕不生硬說教。
 
 你的任務是發想一個極具當代思辨價值、能令國中生耳目一新的「閱讀測驗寫作靈感提案」。
 
 主題方向：${topic ? `「${topic}」` : '請自由發揮一個令人驚喜的優質 PISA 素養探索主題。'}
+👉 本次請優先嘗試將思緒從「${pickedAngle}」的角度來切入，但請自然融入，不需生硬提及該詞彙。
 ${formatReq}${contentTypeReq}${difficultyReq}
 
 請直接回傳一份針對「寫手 AI」的提案框架（純文字，不需問候語、Markdown 語法或程式碼塊）。
@@ -225,7 +246,8 @@ ${formatReq}${contentTypeReq}${difficultyReq}
 寫作基調與視角：(帶出文章獨特的切入點與閱讀氛圍)
     `;
 
-    return await callGenerativeAI(prompt);
+    // 拉高 temperature (0.9) 釋放創造力，避免產出重複枯燥的提案
+    return await callGenerativeAI(prompt, null, null, 'teacher', 0.9);
 }
 
 /**
