@@ -145,9 +145,20 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
 
             await batch.commit()
 
-            // 同步更新前端記憶體中的值，避免同一 session 內重複觸發
+            // 同步更新前端記憶體與 localStorage 中的值，避免同一 session 或重整後重複觸發
             if (hasWeeklyProgress) {
                 studentData.lastProgressCheckWeekId = getWeekId(new Date())
+                // 🔥 修復重複觸發的核心：刷新 localStorage 緩存，避免重整後又恢復成沒有 weekId 的舊版資料
+                try {
+                    const currentTempUserStr = localStorage.getItem('tempUser')
+                    if (currentTempUserStr) {
+                        const parsed = JSON.parse(currentTempUserStr)
+                        if (parsed.studentId === studentId) {
+                            parsed.lastProgressCheckWeekId = studentData.lastProgressCheckWeekId
+                            localStorage.setItem('tempUser', JSON.stringify(parsed))
+                        }
+                    }
+                } catch(e) { console.warn('Could not update tempUser in localStorage', e) }
             }
 
             return pendingAwards

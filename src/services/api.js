@@ -50,6 +50,7 @@ export async function saveSubmission(submissionData) {
                 const newHighScoreStreak = score >= 80 ? (studentData.highScoreStreak || 0) + 1 : 0
                 await updateDoc(studentRef, { highScoreStreak: newHighScoreStreak })
                 authStore.currentUser.highScoreStreak = newHighScoreStreak
+                try { localStorage.setItem('tempUser', JSON.stringify(authStore.currentUser)) } catch(e){}
             }
         }
 

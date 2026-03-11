@@ -359,6 +359,7 @@ onMounted(async () => {
           const { db } = await import('../../firebase/init')
           await updateDoc(doc(db, `classes/${user.classId}/students`, user.studentId), allUpdates)
           Object.assign(authStore.currentUser, allUpdates)
+          try { localStorage.setItem('tempUser', JSON.stringify(authStore.currentUser)) } catch(e){}
           console.log('[Dashboard] Updates:', allUpdates)
         }
 
