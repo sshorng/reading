@@ -140,7 +140,24 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
                 })
                 console.log(`[Achievement] 🏅 Unlocked: "${achievement.name}"`)
             }
+
+            // 如果本次頒發了含 weekly_progress 條件的成就，回寫 lastProgressCheckWeekId 防止同週重複觸發
+            const hasWeeklyProgress = pendingAwards.some(ach =>
+                (ach.conditions || []).some(c => c.type === 'weekly_progress')
+            )
+            if (hasWeeklyProgress && studentData.classId) {
+                const currentWeekId = getWeekId(new Date())
+                const studentRef = doc(db, `classes/${studentData.classId}/students`, studentId)
+                batch.update(studentRef, { lastProgressCheckWeekId: currentWeekId })
+            }
+
             await batch.commit()
+
+            // 同步更新前端記憶體中的值，避免同一 session 內重複觸發
+            if (hasWeeklyProgress) {
+                studentData.lastProgressCheckWeekId = getWeekId(new Date())
+            }
+
             return pendingAwards
         }
     } catch (error) {
