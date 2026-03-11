@@ -192,7 +192,7 @@ async function checkSingleCondition(condition, sData, evType, subs, evData, unlo
     const progressiveTypes = [
         'submission_count', 'genre_explorer', 'unique_formats_read',
         'high_score_streak', 'perfect_score_count', 'recovery_count', 
-        'login_streak', 'completion_streak', 'off_hours_count'
+        'login_streak', 'completion_streak'
     ]
     const isTagCount = condition.type.startsWith('read_tag_')
     
@@ -224,7 +224,7 @@ async function checkSingleCondition(condition, sData, evType, subs, evData, unlo
         const isOffHours = hour >= 22 || hour <= 5
 
         const res = { assignment, firstScore, bestScore, retryCount, passedDuration, daysEarly, isOffHours, subDateObj }
-        // console.log(`  [Subs-Check] Title: ${assignment.title}, FirstScore: ${firstScore}, isOffHours: ${isOffHours}`)
+        console.log(`  [Subs-Check] assignmentId: ${s.assignmentId}, Title: ${assignment.title}, FirstScore: ${firstScore}, BestScore: ${bestScore}, isOffHours: ${isOffHours}, hour: ${hour}, attempts: ${attempts.length}`)
         return res
     })
 
@@ -237,7 +237,11 @@ async function checkSingleCondition(condition, sData, evType, subs, evData, unlo
         'average_score': () => enhancedSubs.length > 0 && (enhancedSubs.reduce((acc, s) => acc + s.firstScore, 0) / enhancedSubs.length) >= value,
         
         // 單篇達標型（如果可重複領取，則統計達標的總篇數 >= 應領取總量）
-        'first_try_min_score': () => enhancedSubs.filter(s => s.firstScore >= value).length >= (unlockCount + 1),
+        'first_try_min_score': () => {
+            const matched = enhancedSubs.filter(s => s.firstScore >= value)
+            console.log(`  [first_try_min_score] threshold: ${value}, matched: ${matched.length}, needed: ${unlockCount + 1}, scores: [${enhancedSubs.map(s => s.firstScore).join(', ')}]`)
+            return matched.length >= (unlockCount + 1)
+        },
         'min_retry_count': () => enhancedSubs.filter(s => s.retryCount >= value && s.bestScore >= 60).length >= (unlockCount + 1),
         'speed_under_seconds': () => enhancedSubs.filter(s => s.passedDuration > 0 && s.passedDuration <= value && s.bestScore >= 60).length >= (unlockCount + 1),
         'duration_over_seconds': () => enhancedSubs.filter(s => s.passedDuration >= value && s.bestScore >= 60).length >= (unlockCount + 1),
@@ -258,7 +262,12 @@ async function checkSingleCondition(condition, sData, evType, subs, evData, unlo
             const prevWeekTotal = enhancedSubs.filter(s => s.subDateObj >= startOfPrevWeek && s.subDateObj < startOfLastWeek).reduce((sum, s) => sum + s.firstScore, 0)
             return lastWeekTotal > 0 && lastWeekTotal > prevWeekTotal
         },
-        'off_hours_count': () => enhancedSubs.filter(s => s.isOffHours && s.bestScore >= 60).length >= value
+        'off_hours_count': () => {
+            const matched = enhancedSubs.filter(s => s.isOffHours && s.bestScore >= 60).length
+            const needed = unlockCount + 1
+            console.log(`  [off_hours_count] matched: ${matched}, needed: ${needed}`)
+            return matched >= needed
+        }
     }
 
     if (condition.type.startsWith('read_tag_')) {
