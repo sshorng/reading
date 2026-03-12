@@ -79,7 +79,7 @@ export const useDataStore = defineStore('data', () => {
                 }
 
                 filteredAssignments = allAssignments.filter(a => {
-                    const isStudentUser = currentUser?.type === 'student'
+                    const isStudentUser = !!currentUser?.studentId
                     if (isStudentUser && a.isPublic !== true) return false
                     if (filters.format && a.tags?.format !== filters.format) return false
                     if (filters.contentType && a.tags?.contentType !== filters.contentType) return false
