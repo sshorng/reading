@@ -170,11 +170,13 @@ const conditionOptions = [
     }
 ]
 
-watch(() => props.editingData, (newData) => {
-  if (newData) {
-    form.value = JSON.parse(JSON.stringify(newData))
-  } else {
-    form.value = { name: '', description: '', icon: '🏆', isEnabled: true, isHidden: false, isRepeatable: false, conditions: [] }
+watch([() => props.isVisible, () => props.editingData], ([newVisible, newData]) => {
+  if (newVisible) {
+    if (newData) {
+      form.value = JSON.parse(JSON.stringify(newData))
+    } else {
+      form.value = { name: '', description: '', icon: '🏆', isEnabled: true, isHidden: false, isRepeatable: false, conditions: [] }
+    }
   }
 }, { immediate: true })
 
