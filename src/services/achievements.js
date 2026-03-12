@@ -110,22 +110,34 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
             console.log(`[Achievement] Testing: "${achievement.name}"`)
             
             // 取得已領取次數，用於累進難度計算
-            const unlockCount = unlockedMap.get(achievement.id) || 0
+            let unlockCount = unlockedMap.get(achievement.id) || 0
 
-            for (const cond of conditions) {
-                const met = await checkSingleCondition(cond, studentData, eventType, studentSubmissions || [], eventData, unlockCount)
-                if (!met) {
-                    console.log(`  - Condition failed: ${cond.type} (val:${cond.value})`)
-                    allMet = false;
-                    break
+            let keepChecking = true
+            while (keepChecking) {
+                let allMet = true
+                for (const cond of conditions) {
+                    const met = await checkSingleCondition(cond, studentData, eventType, studentSubmissions || [], eventData, unlockCount)
+                    if (!met) {
+                        allMet = false
+                        break
+                    }
                 }
-                console.log(`  + Condition met: ${cond.type}`)
-            }
-            if (allMet) {
-                console.log(`[Achievement] 🎉 ALL CONDITIONS MET for "${achievement.name}"`)
-                pendingAwards.push(achievement)
-                // 暫時增加此成就的計算次數，以防同一次判斷中多個條件都依賴它（雖然目前沒這種設計）
-                unlockedMap.set(achievement.id, unlockCount + 1)
+                
+                if (allMet) {
+                    console.log(`[Achievement] 🎉 ALL CONDITIONS MET for "${achievement.name}" (Tier: ${unlockCount + 1})`)
+                    pendingAwards.push(achievement)
+                    // 更新已領取次數，供下一階難度計算
+                    unlockCount++
+                    unlockedMap.set(achievement.id, unlockCount)
+
+                    // 若系統設定不可重複領取，拿一次即停止迴圈
+                    if (!achievement.isRepeatable) {
+                        keepChecking = false
+                    }
+                } else {
+                    // 條件不符，代表此階或此成就不達標，跳出迴圈
+                    keepChecking = false
+                }
             }
         }
 
