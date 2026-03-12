@@ -69,7 +69,7 @@ const lastCharName = computed(() => {
 
 const userGreeting = computed(() => {
   if (!authStore.currentUser) return '歡迎'
-  return authStore.currentUser.type === 'student'
+  return !!authStore.currentUser?.studentId
     ? `學子 ${authStore.currentUser.name}`
     : `夫子 ${authStore.currentUser.name}`
 })

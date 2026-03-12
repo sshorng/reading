@@ -239,6 +239,40 @@ const handleTeacherLogin = async () => {
       localStorage.setItem('tempUser', JSON.stringify(userData))
       
       await loadStudentSubmissions(userData.studentId)
+
+      // 連續完成天數計算 + 連續登入天數計算 (老師帳號若有 studentId 也要計算)
+      try {
+        const teacherRef = doc(db, `classes/teacher_class/students`, "teacher_user")
+        const updates = {}
+
+        // 連續完成天數
+        const streakUpdates = await calculateCompletionStreak(userData.studentId, userData)
+        Object.assign(updates, streakUpdates)
+
+        // 連續登入天數
+        const loginUpdates = await updateLoginStreak(userData.studentId, userData)
+        Object.assign(updates, loginUpdates)
+
+        if (Object.keys(updates).length > 0) {
+          await updateDoc(teacherRef, updates)
+          Object.assign(authStore.currentUser, updates)
+          console.log('[Teacher Login] Updates:', updates)
+          try { localStorage.setItem('tempUser', JSON.stringify(authStore.currentUser)) } catch(e){}
+        }
+
+        // 登入後主動檢查一次成就
+        const awards = await checkAndAwardAchievements(
+          userData.studentId,
+          'login',
+          authStore.currentUser,
+          {}
+        )
+        if (awards && awards.length > 0) {
+          awards.forEach(ach => appStore.pushAchievement(ach))
+        }
+      } catch (streakErr) {
+        console.error('[Teacher Login] Streak/login/achievement calculation failed:', streakErr)
+      }
       
       const redirectPath = route.query.redirect || '/'
       router.push(redirectPath)

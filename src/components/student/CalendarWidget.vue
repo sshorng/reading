@@ -69,7 +69,7 @@ const getDayString = (day) => {
 const getDeadlinesForDate = (day) => {
   const dayStr = getDayString(day)
   return allAssignments.value.filter(a => {
-    const isStudentUser = authStore.currentUser?.type === 'student'
+    const isStudentUser = !!authStore.currentUser?.studentId
     if (isStudentUser && a.isPublic !== true) {
       return false
     }
