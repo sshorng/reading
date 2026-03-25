@@ -224,7 +224,7 @@
                 </div>
             </div>
 
-            <button @click="location.reload()" class="w-full btn-secondary py-2 font-bold">關閉</button>
+            <button @click="window.location.reload()" class="w-full btn-secondary py-2 font-bold">關閉</button>
         </div>
     </div>
   </div>
