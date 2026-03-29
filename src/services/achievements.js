@@ -226,7 +226,7 @@ async function checkSingleCondition(condition, sData, evType, enhancedSubs, evDa
         'submission_count', 'genre_explorer', 'unique_formats_read',
         'high_score_streak', 'perfect_score_count', 'recovery_count', 
         'login_streak', 'completion_streak',
-        'average_score', 'weekly_progress' // 🛡️ 防止無限迴圈的重要變更
+        'average_score' // 🛡️ 移除 weekly_progress，避免倍數化後導致 logic 失效
     ]
     const isTagCount = condition.type.startsWith('read_tag_')
     
@@ -259,13 +259,19 @@ async function checkSingleCondition(condition, sData, evType, enhancedSubs, evDa
         'weekly_progress': () => {
             const now = new Date()
             const currentWeekId = getWeekId(now)
+            // 🛡️ 雙重保險：如果當前學生數據已標記本週領過，直接不符合
             if (sData.lastProgressCheckWeekId === currentWeekId) return false
+            
             const startOfThisWeek = getStartOfWeek(now)
             const startOfLastWeek = new Date(startOfThisWeek.getTime() - 7 * 24 * 60 * 60 * 1000)
             const startOfPrevWeek = new Date(startOfLastWeek.getTime() - 7 * 24 * 60 * 60 * 1000)
+            
             const lastWeekTotal = enhancedSubs.filter(s => s.subDateObj >= startOfLastWeek && s.subDateObj < startOfThisWeek).reduce((sum, s) => sum + s.firstScore, 0)
             const prevWeekTotal = enhancedSubs.filter(s => s.subDateObj >= startOfPrevWeek && s.subDateObj < startOfLastWeek).reduce((sum, s) => sum + s.firstScore, 0)
-            return lastWeekTotal > 0 && lastWeekTotal > prevWeekTotal
+            
+            // 🛡️ 修復：現在必須比上週進步超過指定分數 (value) 才算達成，若無指定則至少要進步
+            const diff = lastWeekTotal - prevWeekTotal
+            return lastWeekTotal > 0 && diff >= (value || 0.1)
         },
         'off_hours_count': () => passedSubs.filter(s => s.isOffHours).length >= (unlockCount + 1)
     }

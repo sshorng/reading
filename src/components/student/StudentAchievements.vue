@@ -242,7 +242,10 @@ const calculateProgressOptimized = (ach, enhancedSubs) => {
         const startOfPrevWeek = new Date(startOfLastWeek.getTime() - 7 * 86400000)
         const lwTotal = enhancedSubs.filter(s => s.subDateObj >= startOfLastWeek && s.subDateObj < startOfThisWeek).reduce((sum, s) => sum + s.firstScore, 0)
         const pwTotal = enhancedSubs.filter(s => s.subDateObj >= startOfPrevWeek && s.subDateObj < startOfLastWeek).reduce((sum, s) => sum + s.firstScore, 0)
-        target = 1; current = (lwTotal > 0 && lwTotal > pwTotal) ? 1 : 0
+        
+        const diff = lwTotal - pwTotal
+        target = val || 0.1
+        current = Math.max(0, diff)
     }
     else if (type === 'speed_under_seconds') { target = 1; current = passedSubs.filter(s => s.passedDuration > 0 && s.passedDuration <= val).length }
     else if (type === 'duration_over_seconds') { target = 1; current = passedSubs.filter(s => s.passedDuration >= val).length }
@@ -280,7 +283,6 @@ const loadData = async () => {
         unlockedRecords.value = unlSnap.docs.map(doc => doc.data())
         
         // 🌟 核心效能改善：在獲取數據後，預先計算增強版列表，原本 50x300x1000 的運算現在降為 300x1
-        const studentId = authStore.currentUser?.studentId
         const studentSubmissions = dataStore.allSubmissions.filter(s => s.studentId === studentId)
         
         // 將篇章轉換為 Map 供 O(1) 查找
