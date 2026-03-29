@@ -70,23 +70,55 @@ export async function fetchClasses() {
     return classes.sort((a, b) => a.className.localeCompare(b.className, 'zh-Hant'))
 }
 
-export async function loadStudentSubmissions(studentId) {
+// Memory cache for student submissions
+let cachedSubmissions = null;
+let lastSubFetchTime = 0;
+let cachedSubPromise = null;
+let cachedStudentId = null;
+
+export async function loadStudentSubmissions(studentId, forceRefresh = false) {
     if (!studentId) return []
-    const submissionsQuery = query(
-        collection(db, "submissions"),
-        where('studentId', '==', studentId),
-        limit(300)
-    )
-    try {
-        const snapshot = await getDocs(submissionsQuery)
-        const submissions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-        const dataStore = useDataStore()
-        dataStore.allSubmissions = submissions // Pinia store handles this nicely if it's a ref returned from setup
-        return submissions
-    } catch (error) {
-        console.error("Error fetching student submissions:", error)
-        return []
+    
+    const now = Date.now()
+    const CACHE_DURATION = 2 * 60 * 1000 // 2 minutes for submissions
+    
+    // 1. 如果學生相同且快取未過期，直接回傳
+    if (!forceRefresh && cachedStudentId === studentId && cachedSubmissions && (now - lastSubFetchTime < CACHE_DURATION)) {
+        return cachedSubmissions
     }
+    
+    // 2. 🛡️ 處理 In-flight 請求
+    if (cachedSubPromise && !forceRefresh && cachedStudentId === studentId) {
+        return cachedSubPromise
+    }
+    
+    cachedStudentId = studentId
+    cachedSubPromise = (async () => {
+        try {
+            console.log(`[API] Loading submissions for student ${studentId}...`)
+            const submissionsQuery = query(
+                collection(db, "submissions"),
+                where('studentId', '==', studentId),
+                limit(300)
+            )
+            const snapshot = await getDocs(submissionsQuery)
+            const submissions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            
+            const dataStore = useDataStore()
+            dataStore.allSubmissions = submissions
+            
+            cachedSubmissions = submissions
+            lastSubFetchTime = Date.now()
+            return submissions
+        } catch (error) {
+            console.error("Error fetching student submissions:", error)
+            return []
+        } finally {
+            cachedSubPromise = null
+        }
+    })()
+    
+    return cachedSubPromise
 }
 
 export async function fetchStudentsByClass(classId) {

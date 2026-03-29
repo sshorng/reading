@@ -49,6 +49,7 @@ const dataStore = useDataStore()
 
 const displayDate = ref(new Date())
 const allAssignments = ref([])
+const deadlineMap = ref(new Map()) // 🛡️ 效能優化：預先計算日期映射
 const selectedDateStr = ref(dataStore.articleQueryState.filters.date || '')
 
 const displayYear = computed(() => displayDate.value.getFullYear())
@@ -68,16 +69,7 @@ const getDayString = (day) => {
 
 const getDeadlinesForDate = (day) => {
   const dayStr = getDayString(day)
-  return allAssignments.value.filter(a => {
-    const isStudentUser = authStore.currentUser?.type === 'student'
-    if (isStudentUser && a.isPublic !== true) {
-      return false
-    }
-    if(!a.deadline) return false
-    const d = a.deadline.toDate()
-    const dString = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    return dString === dayStr
-  })
+  return deadlineMap.value.get(dayStr) || []
 }
 
 const getDayClasses = (day) => {
@@ -136,7 +128,25 @@ const nextMonth = () => {
 onMounted(async () => {
   try {
      // Fetch all assignments without pagination to calculate deadline points accurately
-     allAssignments.value = await getAssignments()
+     const assignments = await getAssignments()
+     allAssignments.value = assignments
+     
+     // 🛡️ 預處理：將所有篇章按日期分類，原本 30x1000 的運算現在降為 1000x1
+     const map = new Map()
+     const isStudentUser = authStore.currentUser?.type === 'student'
+     
+     assignments.forEach(a => {
+        if (isStudentUser && a.isPublic !== true) return
+        if (!a.deadline) return
+        
+        const d = a.deadline.toDate ? a.deadline.toDate() : new Date(a.deadline)
+        if (isNaN(d.getTime())) return
+        
+        const dString = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        if (!map.has(dString)) map.set(dString, [])
+        map.get(dString).push(a)
+     })
+     deadlineMap.value = map
   } catch(e) {
      console.error("Error fetching assignments for calendar", e)
   }
