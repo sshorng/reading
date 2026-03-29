@@ -10,7 +10,10 @@
           
           <div class="achievement-content">
             <div class="achievement-label">成就解鎖</div>
-            <h3 class="achievement-name">{{ currentAchievement.name }}</h3>
+            <h3 class="achievement-name">
+                {{ currentAchievement.name }}
+                <span v-if="currentAchievement.count > 1" class="achievement-multiplier">×{{ currentAchievement.count }}</span>
+            </h3>
             <!-- 移除文字截斷，確保顯示完整 -->
             <p class="achievement-desc">{{ currentAchievement.description }}</p>
             
@@ -19,7 +22,7 @@
             </button>
           </div>
           
-          <div class="achievement-close" @click="closeAchievement" title="關閉">
+          <div class="achievement-close" @click="dismissAll" title="全部已讀並隱藏">
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -52,9 +55,32 @@ function closeAchievement() {
   }, 400)
 }
 
+function dismissAll() {
+  // 一鍵清除所有排隊中的成就
+  appStore.clearAchievementQueue()
+  currentAchievement.value = null
+}
+
 watch(() => appStore.achievementQueue.length, () => {
   if (!currentAchievement.value) {
     showNext()
+  } else {
+    // 🛡️ 高階優化：如果當前正在顯示的成就，剛好又有新的推入隊列 (同 ID)
+    // 我們直接在當前彈窗累加 count 並清空隊列中的該項，讓 UI 看起來是動態翻倍的
+    const nextIdx = appStore.achievementQueue.findIndex(a => a.id === currentAchievement.value.id)
+    if (nextIdx !== -1) {
+        const next = appStore.achievementQueue.splice(nextIdx, 1)[0]
+        currentAchievement.value.count = (currentAchievement.value.count || 1) + (next.count || 1)
+        
+        // 觸發一個小的視覺跳動
+        const el = document.querySelector('.achievement-multiplier')
+        if (el) {
+            el.classList.remove('pulse-multiplier')
+            // reflow
+            void el.offsetWidth 
+            el.classList.add('pulse-multiplier')
+        }
+    }
   }
 })
 
@@ -140,6 +166,35 @@ onMounted(() => {
   color: #0f172a;
   margin: 0;
   line-height: 1.25;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.achievement-multiplier {
+  background: #fef3c7;
+  color: #b45309;
+  padding: 2px 10px;
+  border-radius: 99px;
+  font-size: 16px;
+  border: 1.5px solid #fde68a;
+  box-shadow: 0 2px 4px rgba(180, 83, 9, 0.1);
+  animation: multiplier-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.pulse-multiplier {
+   animation: multiplier-pulse 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes multiplier-in {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes multiplier-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.4); }
+  100% { transform: scale(1); }
 }
 
 .achievement-desc {

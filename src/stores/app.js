@@ -21,11 +21,23 @@ export const useAppStore = defineStore('app', () => {
         loadingMessage.value = ''
     }
 
+    function clearAchievementQueue() {
+        achievementQueue.value = []
+    }
+
     const achievementQueue = ref([])
     const isShowingAchievement = ref(false)
 
     function pushAchievement(achievement) {
-        achievementQueue.value.push(achievement)
+        // 查找隊列中是否已有相同的成就 ID
+        const existingIdx = achievementQueue.value.findIndex(a => a.id === achievement.id)
+        if (existingIdx !== -1) {
+            // 如果已在隊列中，直接遞增倍數
+            achievementQueue.value[existingIdx].count = (achievementQueue.value[existingIdx].count || 1) + 1
+        } else {
+            // 如果是新成就，初始化 count = 1 並推入
+            achievementQueue.value.push({ ...achievement, count: achievement.count || 1 })
+        }
     }
 
     return {
