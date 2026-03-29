@@ -87,7 +87,7 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
             return []
         }
 
-        // 4. 準備檢查所需資料（簡化：只要有待檢查成就就載入 submissions）
+        // 4. 準備檢查所需資料
         let studentSubmissions = eventData.submissions || null
         if (studentSubmissions === null) {
             studentSubmissions = await loadStudentSubmissions(studentId)
@@ -97,26 +97,51 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
             return (ach.conditions || []).some(c => c.type?.startsWith('read_tag_') || c.type === 'genre_explorer' || c.type === 'unique_formats_read' || c.type === 'days_before_deadline')
         })
 
-        if (needsAssignments && !eventData.allAssignments) {
+        let assignmentsMap = new Map()
+        if (needsAssignments) {
             const { getAssignments } = await import('./api')
-            eventData.allAssignments = await getAssignments()
+            const all = await getAssignments()
+            all.forEach(a => assignmentsMap.set(a.id, a))
         }
+
+        // 🌟 關鍵優化：將 enhancedSubs 的預處理提到迴圈外，只做一次
+        const enhancedSubs = (studentSubmissions || []).map(s => {
+            const assignment = assignmentsMap.get(s.assignmentId) || {}
+            const attempts = s.attempts || []
+            const bestScore = attempts.length > 0 ? Math.max(...attempts.map(a => a.score)) : (s.score || 0)
+            const firstScore = attempts.length > 0 ? attempts[0].score : (s.score || 0)
+            const retryCount = Math.max(0, attempts.length - 1)
+            const firstPassedAttempt = attempts.find(a => a.score >= 60)
+            const passedDuration = firstPassedAttempt ? (firstPassedAttempt.durationSeconds || s.durationSeconds || 0) : (s.durationSeconds || 0)
+
+            let subDateObj = toValidDate(s.lastSubmittedAt || s.submittedAt) || new Date()
+
+            let daysEarly = 0
+            const deadlineField = assignment.deadline || assignment.dueDate
+            if (deadlineField) {
+                const due = toValidDate(deadlineField)
+                if (due) daysEarly = (due - subDateObj) / (1000 * 60 * 60 * 24)
+            }
+            const hour = subDateObj.getHours()
+            const isOffHours = hour >= 22 || hour <= 5
+
+            return { assignment, firstScore, bestScore, retryCount, passedDuration, daysEarly, isOffHours, subDateObj }
+        })
 
         // 5. 逐一檢查
         const pendingAwards = []
         for (const achievement of filteredAchievements) {
             const conditions = achievement.conditions || []
-            let allMet = true
-            console.log(`[Achievement] Testing: "${achievement.name}"`)
-            
-            // 取得已領取次數，用於累進難度計算
             let unlockCount = unlockedMap.get(achievement.id) || 0
 
             let keepChecking = true
-            while (keepChecking) {
+            let safetyCounter = 0 // 🛡️ 安全機制：防止無限迴圈
+            while (keepChecking && safetyCounter < 100) {
+                safetyCounter++
                 let allMet = true
                 for (const cond of conditions) {
-                    const met = await checkSingleCondition(cond, studentData, eventType, studentSubmissions || [], eventData, unlockCount)
+                    // 修正：將 eventData 傳入 (原誤植為未定義的 evData)
+                    const met = await checkSingleCondition(cond, studentData, eventType, enhancedSubs, eventData, unlockCount)
                     if (!met) {
                         allMet = false
                         break
@@ -124,20 +149,16 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
                 }
                 
                 if (allMet) {
-                    console.log(`[Achievement] 🎉 ALL CONDITIONS MET for "${achievement.name}" (Tier: ${unlockCount + 1})`)
                     pendingAwards.push(achievement)
-                    // 更新已領取次數，供下一階難度計算
                     unlockCount++
                     unlockedMap.set(achievement.id, unlockCount)
-
-                    // 若系統設定不可重複領取，拿一次即停止迴圈
-                    if (!achievement.isRepeatable) {
-                        keepChecking = false
-                    }
+                    if (!achievement.isRepeatable) keepChecking = false
                 } else {
-                    // 條件不符，代表此階或此成就不達標，跳出迴圈
                     keepChecking = false
                 }
+            }
+            if (safetyCounter >= 100) {
+                console.warn(`[Achievement] Loop limit reached for achievement: ${achievement.name}. Potential infinite loop logic detected.`)
             }
         }
 
@@ -195,16 +216,17 @@ export async function checkAndAwardAchievements(studentId, eventType, studentDat
 /**
  * 檢查單一條件
  */
-async function checkSingleCondition(condition, sData, evType, subs, evData, unlockCount = 0) {
+async function checkSingleCondition(condition, sData, evType, enhancedSubs, evData, unlockCount = 0) {
     const baseValue = parseInt(condition.value, 10)
     if (condition.type !== 'weekly_progress' && isNaN(baseValue)) return false
     
-    // 只有「數量累計型」才套用階梯式難度 (累積次數 * 基準值)，
-    // 時間門檻、單次達標型則不變，因為它們的 value 是「標準」，而不是「累計次數」
+    // 只有「數量累計型」才套用階梯式難度 (累積次數 * 基準值)
+    // 只有「數量累計型」或「成長目標型」才套用階梯式難度 (累積次數 * 基準值)
     const progressiveTypes = [
         'submission_count', 'genre_explorer', 'unique_formats_read',
         'high_score_streak', 'perfect_score_count', 'recovery_count', 
-        'login_streak', 'completion_streak'
+        'login_streak', 'completion_streak',
+        'average_score', 'weekly_progress' // 🛡️ 防止無限迴圈的重要變更
     ]
     const isTagCount = condition.type.startsWith('read_tag_')
     
@@ -212,52 +234,23 @@ async function checkSingleCondition(condition, sData, evType, subs, evData, unlo
         ? baseValue * (unlockCount + 1) 
         : baseValue
 
-    const allAssignments = evData.allAssignments || []
-    const enhancedSubs = (subs || []).map(s => {
-        const assignment = allAssignments.find(a => a.id === s.assignmentId) || {}
-        const attempts = s.attempts || []
-        const bestScore = attempts.length > 0 ? Math.max(...attempts.map(a => a.score)) : (s.score || 0)
-        const firstScore = attempts.length > 0 ? attempts[0].score : (s.score || 0)
-        const retryCount = Math.max(0, attempts.length - 1)
-        const firstPassedAttempt = attempts.find(a => a.score >= 60)
-        const passedDuration = firstPassedAttempt ? (firstPassedAttempt.durationSeconds || s.durationSeconds || 0) : (s.durationSeconds || 0)
-
-        // 修正：使用 lastSubmittedAt (最新繳卷時間) 來判定深夜作答，而非首次開始時間
-        let subDateObj = toValidDate(s.lastSubmittedAt || s.submittedAt) || new Date()
-
-        let daysEarly = 0
-        // 修正：Firestore 中的欄位名是 deadline，不是 dueDate
-        const deadlineField = assignment.deadline || assignment.dueDate
-        if (deadlineField) {
-            const due = toValidDate(deadlineField)
-            if (due) daysEarly = (due - subDateObj) / (1000 * 60 * 60 * 24)
-        }
-        const hour = subDateObj.getHours()
-        const isOffHours = hour >= 22 || hour <= 5
-
-        const res = { assignment, firstScore, bestScore, retryCount, passedDuration, daysEarly, isOffHours, subDateObj }
-        console.log(`  [Subs-Check] assignmentId: ${s.assignmentId}, Title: ${assignment.title}, FirstScore: ${firstScore}, BestScore: ${bestScore}, isOffHours: ${isOffHours}, hour: ${hour}, attempts: ${attempts.length}`)
-        return res
-    })
+    // 優化：預先過濾出及格的文章，減少後端重複 filter 負擔
+    const passedSubs = enhancedSubs.filter(s => s.bestScore >= 60)
 
     const STRATEGIES = {
         // 維度一：基礎與廣度
-        'submission_count': () => enhancedSubs.filter(s => s.bestScore >= 60).length >= value,
-        'genre_explorer': () => new Set(enhancedSubs.filter(s => s.bestScore >= 60).map(s => s.assignment?.tags?.contentType).filter(Boolean)).size >= value,
-        'unique_formats_read': () => new Set(enhancedSubs.filter(s => s.bestScore >= 60).map(s => s.assignment?.tags?.format || '預設').filter(Boolean)).size >= value,
+        'submission_count': () => passedSubs.length >= value,
+        'genre_explorer': () => new Set(passedSubs.map(s => s.assignment?.tags?.contentType).filter(Boolean)).size >= value,
+        'unique_formats_read': () => new Set(passedSubs.map(s => s.assignment?.tags?.format || '預設').filter(Boolean)).size >= value,
         'high_score_streak': () => (sData.highScoreStreak || 0) >= value,
         'average_score': () => enhancedSubs.length > 0 && (enhancedSubs.reduce((acc, s) => acc + s.firstScore, 0) / enhancedSubs.length) >= value,
         
-        // 單篇達標型（如果可重複領取，則統計達標的總篇數 >= 應領取總量）
-        'first_try_min_score': () => {
-            const matched = enhancedSubs.filter(s => s.firstScore >= value)
-            console.log(`  [first_try_min_score] threshold: ${value}, matched: ${matched.length}, needed: ${unlockCount + 1}, scores: [${enhancedSubs.map(s => s.firstScore).join(', ')}]`)
-            return matched.length >= (unlockCount + 1)
-        },
-        'min_retry_count': () => enhancedSubs.filter(s => s.retryCount >= value && s.bestScore >= 60).length >= (unlockCount + 1),
-        'speed_under_seconds': () => enhancedSubs.filter(s => s.passedDuration > 0 && s.passedDuration <= value && s.bestScore >= 60).length >= (unlockCount + 1),
-        'duration_over_seconds': () => enhancedSubs.filter(s => s.passedDuration >= value && s.bestScore >= 60).length >= (unlockCount + 1),
-        'days_before_deadline': () => enhancedSubs.filter(s => s.daysEarly >= value && s.bestScore >= 60).length >= (unlockCount + 1),
+        // 單篇達標型
+        'first_try_min_score': () => enhancedSubs.filter(s => s.firstScore >= value).length >= (unlockCount + 1),
+        'min_retry_count': () => passedSubs.filter(s => s.retryCount >= value).length >= (unlockCount + 1),
+        'speed_under_seconds': () => passedSubs.filter(s => s.passedDuration > 0 && s.passedDuration <= value).length >= (unlockCount + 1),
+        'duration_over_seconds': () => passedSubs.filter(s => s.passedDuration >= value).length >= (unlockCount + 1),
+        'days_before_deadline': () => passedSubs.filter(s => s.daysEarly >= value).length >= (unlockCount + 1),
 
         'perfect_score_count': () => enhancedSubs.filter(s => s.bestScore >= 100).length >= value,
         'recovery_count': () => enhancedSubs.filter(s => s.firstScore < 60 && s.bestScore >= 100).length >= value,
@@ -274,23 +267,16 @@ async function checkSingleCondition(condition, sData, evType, subs, evData, unlo
             const prevWeekTotal = enhancedSubs.filter(s => s.subDateObj >= startOfPrevWeek && s.subDateObj < startOfLastWeek).reduce((sum, s) => sum + s.firstScore, 0)
             return lastWeekTotal > 0 && lastWeekTotal > prevWeekTotal
         },
-        'off_hours_count': () => {
-            const matched = enhancedSubs.filter(s => s.isOffHours && s.bestScore >= 60).length
-            const needed = unlockCount + 1
-            console.log(`  [off_hours_count] matched: ${matched}, needed: ${needed}`)
-            return matched >= needed
-        }
+        'off_hours_count': () => passedSubs.filter(s => s.isOffHours).length >= (unlockCount + 1)
     }
 
     if (condition.type.startsWith('read_tag_')) {
         const isContentType = condition.type.startsWith('read_tag_contentType_')
         const tag = condition.type.replace(isContentType ? 'read_tag_contentType_' : 'read_tag_difficulty_', '')
-        // 修正：成就計算應僅包含「及格」的文章，否則作答進階文章即便 0 分也會解鎖成就
-        return enhancedSubs.filter(s => {
-            const matchesTag = isContentType
+        return passedSubs.filter(s => {
+            return isContentType
                 ? (s.assignment?.tags?.contentType === tag)
                 : (s.assignment?.tags?.difficulty === tag)
-            return matchesTag && s.bestScore >= 60
         }).length >= value
     }
 
@@ -308,9 +294,9 @@ export async function calculateCompletionStreak(studentId, studentData) {
     if (lastCheckStr === todayStr) return {}
 
     const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1); yesterday.setHours(23, 59, 59, 999)
-    const assignmentsQuery = query(collection(db, 'assignments'), where('deadline', '<=', Timestamp.fromDate(yesterday)))
-    const dueSnap = await getDocs(assignmentsQuery)
-    const dueAssignments = dueSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+    const { getAssignments } = await import('./api')
+    const allAssignments = await getAssignments()
+    const dueAssignments = allAssignments.filter(a => a.deadline && toValidDate(a.deadline) <= yesterday)
 
     if (dueAssignments.length === 0) {
         updates.lastCompletionCheckDate = Timestamp.now()

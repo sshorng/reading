@@ -110,29 +110,44 @@ export async function fetchAllSubmissionsByClass(classId) {
 // Memory cache for global assignments
 let cachedAssignments = null;
 let lastFetchTime = 0;
+let cachedAssignmentsPromise = null; // 🛡️ 處理同時發出的請求快取
 
 export async function getAssignments(forceRefresh = false) {
     const now = Date.now()
     const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 
+    // 1. 如果有現成的記憶體快取且未過期，直接回傳
     if (!forceRefresh && cachedAssignments && (now - lastFetchTime < CACHE_DURATION)) {
         return cachedAssignments
     }
 
-    try {
-        const assignmentsSnapshot = await getDocs(query(collection(db, "assignments"), orderBy("createdAt", "desc")))
-        const assignments = assignmentsSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }))
-
-        cachedAssignments = assignments
-        lastFetchTime = now
-        return assignments
-    } catch (err) {
-        console.error("Error fetching assignments:", err)
-        return []
+    // 2. 🛡️ 處理 In-flight 請求：如果目前正在抓取中，回傳同一個 Promise
+    if (cachedAssignmentsPromise && !forceRefresh) {
+        return cachedAssignmentsPromise
     }
+
+    // 3. 建立抓取任務
+    cachedAssignmentsPromise = (async () => {
+        try {
+            console.log('[API] Fetching all assignments from Firestore...')
+            const assignmentsSnapshot = await getDocs(collection(db, "assignments"))
+            const assignments = assignmentsSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }))
+
+            cachedAssignments = assignments
+            lastFetchTime = Date.now()
+            return assignments
+        } catch (err) {
+            console.error("Error fetching assignments:", err)
+            return []
+        } finally {
+            cachedAssignmentsPromise = null // 任務結束後清空，允許下次調度
+        }
+    })()
+
+    return cachedAssignmentsPromise
 }
 
 export async function getAssignmentById(id) {
