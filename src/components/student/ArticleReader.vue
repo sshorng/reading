@@ -224,7 +224,7 @@
                 </div>
             </div>
 
-            <button @click="window.location.reload()" class="w-full btn-secondary py-2 font-bold">關閉</button>
+            <button @click="handleCloseResults" class="w-full btn-secondary py-2 font-bold">關閉</button>
         </div>
     </div>
   </div>
@@ -445,6 +445,11 @@ const submitButtonText = computed(() => {
 })
 
 // UI Handlers
+const handleCloseResults = () => {
+    showResults.value = false;
+    window.location.reload();
+}
+
 const switchTab = (tab) => {
     if (tab === 'analysis' && !canViewAnalysis.value) {
         alert('夫子提點：誠心誦讀、細察文理，待閣下過關（閱歷滿 60）之後，此處詳解方能顯現。');
