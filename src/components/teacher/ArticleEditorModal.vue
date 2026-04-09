@@ -396,7 +396,7 @@ const handleAIRefine = async () => {
     const { callGenerativeAI, generateSingleInfo } = await import('../../services/ai')
     
     if (aiRefineTarget.value === 'article') {
-      const prompt = `你是一位專業且細心的中文文本編輯。請根據以下指令潤飾提供的文章，並嚴格遵守段落排版規則：在每一個「自然段落」的開頭，加上兩個全形空格 \"　　\" 作為縮排。段落之間空一行。僅輸出潤飾後的文稿，不要有任何解析或廢話。\n\n指令：${aiRefinePrompt.value}\n原文：\n${form.value.article}`
+      const prompt = `你是一位專業且細心的中文文本編輯。請根據以下指令潤飾提供的文章，並嚴格遵守段落排版規則：在每一個「自然段落」的開頭，加上兩個全形空格 \"　　\" 作為縮排。段落之間空一行。僅輸出潤飾後的文稿，不要有任何解析或廢話。絕對禁止使用「不是……而是……」這類 AI 味重的句型。\n\n指令：${aiRefinePrompt.value}\n原文：\n${form.value.article}`
       const res = await callGenerativeAI(prompt)
       form.value.article = res
     } else {

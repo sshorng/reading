@@ -403,7 +403,7 @@ ${JSON.stringify(analysisData, null, 2)}
 1.  **引言**: 簡要說明本次試煉的整體表現（如及格率、整體難度感）。
 2.  **逐題分析**: 深入探討高誘答率的錯誤選項，分析學子可能的學習盲點（例如：斷章取義、忽略關聯等）。如果需要，可以運用 Mermaid 語法繪製一到兩個統計圖表輔助說明。
 3.  **綜合評估與教學建議**：總結學子在 PISA 三層次（擷取、統整、省思）上的整體表現，並提出 2-3 點具體、可行的教學調整方向。
-4.  **格式**: 請使用 Markdown 格式，讓報告清晰易讀，並帶有鼓勵與專業的語氣。`
+4.  **格式**: 請使用 Markdown 格式，讓報告清晰易讀，並帶有鼓勵與專業的語氣。**絕對禁止使用「不是……而是……」這種 AI 感重的句式**。`
 
       const { callGenerativeAI } = await import('../../services/ai')
       const result = await callGenerativeAI(prompt, null, null, 'teacher')
