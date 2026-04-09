@@ -447,7 +447,6 @@ const submitButtonText = computed(() => {
 // UI Handlers
 const handleCloseResults = () => {
     showResults.value = false;
-    window.location.reload();
 }
 
 const switchTab = (tab) => {
