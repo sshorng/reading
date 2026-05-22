@@ -324,8 +324,19 @@ const loadSubmissions = async () => {
              duration = `${Math.floor(durSeconds/60)}分${durSeconds%60}秒`
           }
           
+          // 動態且精準判定是否為逾期完成，免去資料庫無欄位之歷史包袱
+          let isOverdueFinished = false
+          if (props.assignment?.deadline) {
+             const deadlineTime = props.assignment.deadline.toDate().getTime()
+             const submitTime = sub.lastSubmittedAt || sub.submittedAt
+             if (submitTime) {
+                const submitDate = submitTime.toDate ? submitTime.toDate().getTime() : new Date(submitTime).getTime()
+                isOverdueFinished = submitDate > deadlineTime
+             }
+          }
+
           if (isPassed) {
-             status = sub.isOverdue ? '逾期完成' : '已完成'
+             status = isOverdueFinished ? '逾期完成' : '已完成'
           } else if (!isPassed && sub.attempts && sub.attempts.length > 0) {
              status = `未完（挑戰 ${sub.attempts.length} 次）`
           } else {
