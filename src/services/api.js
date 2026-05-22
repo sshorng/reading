@@ -21,18 +21,22 @@ export async function saveSubmission(submissionData) {
         submittedAt: new Date()
     }
 
+    const classId = authStore.currentUser?.classId || studentId.split('_')[0]
+
     try {
         const docSnap = await getDoc(submissionRef)
         if (docSnap.exists()) {
             await updateDoc(submissionRef, {
                 attempts: arrayUnion(attempt),
                 score: Math.max(docSnap.data().score || 0, score),
-                lastSubmittedAt: attempt.submittedAt
+                lastSubmittedAt: attempt.submittedAt,
+                classId: classId // 補上 classId，以防舊資料沒有
             })
             // 重考同一篇文章：不影響連續高分 streak
         } else {
             await setDoc(submissionRef, {
                 studentId,
+                classId, // 寫入班級 ID
                 assignmentId,
                 score,
                 answers, // Latest answers

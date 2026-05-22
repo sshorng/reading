@@ -195,7 +195,7 @@
 
 <script setup>
 import { ref, watch, nextTick } from 'vue'
-import { collection, query, where, getDocs } from 'firebase/firestore'
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore'
 import { db } from '../../firebase/init'
 import { useAuthStore } from '../../stores/auth'
 import { markdownToHtml, escapeHtml } from '../../utils/helpers'
@@ -295,13 +295,13 @@ const loadSubmissions = async () => {
     const stuSnap = await getDocs(collection(db, `classes/${props.classId}/students`))
     const studentsList = stuSnap.docs.map(d => ({ id: d.id, ...d.data() }))
 
-    const q = query(
-      collection(db, 'submissions'), 
-      where('assignmentId', '==', props.assignment.id), 
-      where('classId', '==', props.classId)
+    // 點對點高效獲取本班學生的試卷，免除複合索引需求，並完美相容歷史無 classId 欄位的作答記錄
+    const subPromises = studentsList.map(stu => 
+      getDoc(doc(db, 'submissions', `${stu.id}_${props.assignment.id}`))
     )
-    const snap = await getDocs(q)
-    const subs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    const subSnaps = await Promise.all(subPromises)
+    const subs = subSnaps.filter(s => s.exists()).map(s => ({ id: s.id, ...s.data() }))
+    
     assignmentSubmissions.value = subs
 
     classStudents.value = studentsList.map(stu => {
