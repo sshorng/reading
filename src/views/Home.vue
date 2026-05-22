@@ -54,7 +54,11 @@ const router = useRouter()
 const authStore = useAuthStore()
 const dataStore = useDataStore()
 
-const currentTab = ref('student')
+const currentTab = ref(sessionStorage.getItem('lastHomeTab') || 'student')
+
+watch(currentTab, (newVal) => {
+  sessionStorage.setItem('lastHomeTab', newVal)
+})
 
 watch(() => dataStore.editTargetAssignmentId, (newVal) => {
   if (newVal) {

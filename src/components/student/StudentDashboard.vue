@@ -202,6 +202,33 @@ const showAchievementsModal = ref(false)
 const showChangePassword = ref(false)
 const selectedAssignment = ref(null)
 
+// Persist the active selected assignment in sessionStorage to survive F5 refreshes
+watch(selectedAssignment, (newVal) => {
+  if (newVal) {
+    sessionStorage.setItem('lastSelectedAssignmentId', newVal.id)
+  } else {
+    sessionStorage.removeItem('lastSelectedAssignmentId')
+  }
+})
+
+const restoreSelectedAssignment = () => {
+  const lastId = sessionStorage.getItem('lastSelectedAssignmentId')
+  if (!lastId || selectedAssignment.value) return
+
+  let found = dataStore.assignments.find(a => a.id === lastId)
+  if (!found) {
+    found = pendingAssignments.value?.find(a => a.id === lastId)
+  }
+  
+  if (found) {
+    selectedAssignment.value = found
+  }
+}
+
+watch([() => dataStore.assignments, pendingAssignments], () => {
+  restoreSelectedAssignment()
+}, { deep: true })
+
 const mySubmissions = computed(() => {
     const sid = authStore.currentUser?.studentId
     if (!sid) return []
