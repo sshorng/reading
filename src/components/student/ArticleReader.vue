@@ -158,9 +158,10 @@
                           <label 
                             class="flex items-center gap-4 p-4 rounded-xl border border-slate-100 transition-all group/label"
                             :class="[
-                              isQuestionLocked(index) ? 'cursor-not-allowed opacity-80' : 'cursor-pointer hover:bg-slate-50 hover:border-amber-200',
+                              (isQuestionLocked(index) || isOptionExcluded(index, optIdx)) ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 hover:border-amber-200',
+                              isOptionExcluded(index, optIdx) ? 'opacity-40 bg-slate-50 border-dashed border-slate-200 line-through text-slate-400 decoration-slate-400' : '',
                               (isQuestionLocked(index) && optIdx === (q.correctAnswerIndex ?? q.correctAnswer)) ? 'bg-emerald-50 border-emerald-200 shadow-sm' : '',
-                              (!isQuestionLocked(index) && selectedAnswers[index] === optIdx) ? 'border-amber-300 bg-amber-50/30' : ''
+                              (!isQuestionLocked(index) && !isOptionExcluded(index, optIdx) && selectedAnswers[index] === optIdx) ? 'border-amber-300 bg-amber-50/30' : ''
                             ]"
                           >
                             <input
@@ -169,8 +170,8 @@
                               :value="optIdx"
                               v-model="selectedAnswers[index]"
                               class="w-5 h-5 accent-red-800"
-                              :class="isQuestionLocked(index) ? 'cursor-not-allowed' : 'cursor-pointer'"
-                              :disabled="isLockedByCooldown || isQuestionLocked(index)"
+                              :class="(isQuestionLocked(index) || isOptionExcluded(index, optIdx)) ? 'cursor-not-allowed' : 'cursor-pointer'"
+                              :disabled="isLockedByCooldown || isQuestionLocked(index) || isOptionExcluded(index, optIdx)"
                             >
                             <span 
                               class="font-bold text-sm transition-colors"
@@ -178,6 +179,26 @@
                                 (isQuestionLocked(index) && optIdx === (q.correctAnswerIndex ?? q.correctAnswer)) ? 'text-emerald-700' : 'text-slate-600 group-hover/label:text-slate-900'
                               ]"
                             >{{ option }}</span>
+                            <button
+                              v-if="!isQuestionLocked(index)"
+                              type="button"
+                              @click.stop.prevent="toggleExcludeOption(index, optIdx)"
+                              class="ml-auto p-2 -mr-2 rounded-full transition-all focus:outline-none flex items-center justify-center"
+                              :class="[
+                                isOptionExcluded(index, optIdx)
+                                  ? 'text-amber-600 bg-amber-50 hover:bg-amber-100'
+                                  : 'text-slate-300 hover:text-red-500 hover:bg-red-50'
+                              ]"
+                              :title="isOptionExcluded(index, optIdx) ? '恢復選項' : '排除此選項'"
+                              style="min-width: 40px; min-height: 40px;"
+                            >
+                              <svg v-if="isOptionExcluded(index, optIdx)" xmlns="http://www.w3.org/2000/svg" class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                              </svg>
+                              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                              </svg>
+                            </button>
                           </label>
                        </div>
                     </div>
@@ -253,6 +274,28 @@ const isReviewing = ref(false)
 const score = ref(0)
 const questions = computed(() => props.assignment.questions || [])
 const selectedAnswers = ref(Array(questions.value.length).fill(null))
+
+const excludedOptions = ref([])
+
+const isOptionExcluded = (qIdx, optIdx) => {
+  return excludedOptions.value[qIdx]?.includes(optIdx) || false
+}
+
+const toggleExcludeOption = (qIdx, optIdx) => {
+  if (isQuestionLocked(qIdx)) return
+  if (!excludedOptions.value[qIdx]) {
+    excludedOptions.value[qIdx] = []
+  }
+  const idx = excludedOptions.value[qIdx].indexOf(optIdx)
+  if (idx > -1) {
+    excludedOptions.value[qIdx].splice(idx, 1)
+  } else {
+    excludedOptions.value[qIdx].push(optIdx)
+    if (selectedAnswers.value[qIdx] === optIdx) {
+      selectedAnswers.value[qIdx] = null
+    }
+  }
+}
 
 const mermaidInitialized = ref(false)
 const initializeMermaid = () => {
@@ -563,6 +606,7 @@ onMounted(() => {
     loadContent(); setupCooldown(); activeTab.value = 'article';
     const best = [...history.value].sort((a,b) => b.score - a.score)[0];
     selectedAnswers.value = best ? [...best.answers] : Array(questions.value.length).fill(null);
+    excludedOptions.value = Array(questions.value.length).fill(0).map(() => []);
     
     if (isPassed.value) {
         stopTimer();
