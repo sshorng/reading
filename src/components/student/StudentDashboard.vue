@@ -202,6 +202,23 @@ const showAchievementsModal = ref(false)
 const showChangePassword = ref(false)
 const selectedAssignment = ref(null)
 
+const mySubmissions = computed(() => {
+    const sid = authStore.currentUser?.studentId
+    if (!sid) return []
+    return dataStore.allSubmissions.filter(s => s.studentId === sid)
+})
+
+watch(currentTab, () => {
+    selectedAssignment.value = null
+})
+
+const filters = dataStore.articleQueryState.filters
+const assignments = computed(() => dataStore.assignments)
+const isLoading = computed(() => dataStore.articleQueryState.isLoading)
+const isLastPage = computed(() => dataStore.articleQueryState.isLastPage)
+
+const pendingAssignments = ref([])
+
 // Persist the active selected assignment in sessionStorage to survive F5 refreshes
 watch(selectedAssignment, (newVal) => {
   if (newVal) {
@@ -228,23 +245,6 @@ const restoreSelectedAssignment = () => {
 watch([() => dataStore.assignments, pendingAssignments], () => {
   restoreSelectedAssignment()
 }, { deep: true })
-
-const mySubmissions = computed(() => {
-    const sid = authStore.currentUser?.studentId
-    if (!sid) return []
-    return dataStore.allSubmissions.filter(s => s.studentId === sid)
-})
-
-watch(currentTab, () => {
-    selectedAssignment.value = null
-})
-
-const filters = dataStore.articleQueryState.filters
-const assignments = computed(() => dataStore.assignments)
-const isLoading = computed(() => dataStore.articleQueryState.isLoading)
-const isLastPage = computed(() => dataStore.articleQueryState.isLastPage)
-
-const pendingAssignments = ref([])
 
 const handleArticleSubmit = async (data) => {
   await saveSubmission(data)
