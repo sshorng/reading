@@ -158,7 +158,7 @@
                           <label 
                             class="flex items-center gap-4 p-4 rounded-xl border border-slate-100 transition-all group/label"
                             :class="[
-                              (isQuestionLocked(index) || isOptionExcluded(index, optIdx)) ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 hover:border-amber-200',
+                              isQuestionLocked(index) ? 'cursor-not-allowed opacity-80' : 'cursor-pointer hover:bg-slate-50 hover:border-amber-200',
                               isOptionExcluded(index, optIdx) ? 'opacity-40 bg-slate-50 border-dashed border-slate-200 line-through text-slate-400 decoration-slate-400' : '',
                               (isQuestionLocked(index) && optIdx === (q.correctAnswerIndex ?? q.correctAnswer)) ? 'bg-emerald-50 border-emerald-200 shadow-sm' : '',
                               (!isQuestionLocked(index) && !isOptionExcluded(index, optIdx) && selectedAnswers[index] === optIdx) ? 'border-amber-300 bg-amber-50/30' : ''
@@ -170,8 +170,8 @@
                               :value="optIdx"
                               v-model="selectedAnswers[index]"
                               class="w-5 h-5 accent-red-800"
-                              :class="(isQuestionLocked(index) || isOptionExcluded(index, optIdx)) ? 'cursor-not-allowed' : 'cursor-pointer'"
-                              :disabled="isLockedByCooldown || isQuestionLocked(index) || isOptionExcluded(index, optIdx)"
+                              :class="isQuestionLocked(index) ? 'cursor-not-allowed' : 'cursor-pointer'"
+                              :disabled="isLockedByCooldown || isQuestionLocked(index)"
                             >
                             <span 
                               class="font-bold text-sm transition-colors"
@@ -277,8 +277,27 @@ const selectedAnswers = ref(Array(questions.value.length).fill(null))
 
 const excludedOptions = ref([])
 
+const EXCLUDED_LOCAL_STORAGE_KEY = computed(() => `excluded_opts_${authStore.currentUser?.studentId || 'anon'}_${props.assignment.id}`)
+
 const isOptionExcluded = (qIdx, optIdx) => {
   return excludedOptions.value[qIdx]?.includes(optIdx) || false
+}
+
+const saveExcludedOptions = () => {
+  localStorage.setItem(EXCLUDED_LOCAL_STORAGE_KEY.value, JSON.stringify(excludedOptions.value))
+}
+
+const loadExcludedOptions = () => {
+  const saved = localStorage.getItem(EXCLUDED_LOCAL_STORAGE_KEY.value)
+  if (saved) {
+    try {
+      excludedOptions.value = JSON.parse(saved)
+    } catch (e) {
+      excludedOptions.value = Array(questions.value.length).fill(0).map(() => [])
+    }
+  } else {
+    excludedOptions.value = Array(questions.value.length).fill(0).map(() => [])
+  }
 }
 
 const toggleExcludeOption = (qIdx, optIdx) => {
@@ -295,7 +314,21 @@ const toggleExcludeOption = (qIdx, optIdx) => {
       selectedAnswers.value[qIdx] = null
     }
   }
+  saveExcludedOptions()
 }
+
+// Watch selectedAnswers to automatically restore option when selected
+watch(selectedAnswers, (newVal) => {
+  newVal.forEach((ans, qIdx) => {
+    if (ans !== null && ans !== undefined) {
+      const idx = excludedOptions.value[qIdx]?.indexOf(ans)
+      if (idx !== undefined && idx > -1) {
+        excludedOptions.value[qIdx].splice(idx, 1)
+        saveExcludedOptions()
+      }
+    }
+  })
+}, { deep: true })
 
 const mermaidInitialized = ref(false)
 const initializeMermaid = () => {
@@ -606,7 +639,7 @@ onMounted(() => {
     loadContent(); setupCooldown(); activeTab.value = 'article';
     const best = [...history.value].sort((a,b) => b.score - a.score)[0];
     selectedAnswers.value = best ? [...best.answers] : Array(questions.value.length).fill(null);
-    excludedOptions.value = Array(questions.value.length).fill(0).map(() => []);
+    loadExcludedOptions();
     
     if (isPassed.value) {
         stopTimer();
