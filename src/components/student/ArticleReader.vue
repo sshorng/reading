@@ -156,49 +156,72 @@
                     <div class="mt-6 space-y-3">
                        <div v-for="(option, optIdx) in q.options" :key="optIdx">
                           <label 
-                            class="flex items-center gap-4 p-4 rounded-xl border border-slate-100 transition-all group/label"
-                            :class="[
-                              isQuestionLocked(index) ? 'cursor-not-allowed opacity-80' : 'cursor-pointer hover:bg-slate-50 hover:border-amber-200',
-                              isOptionExcluded(index, optIdx) ? 'opacity-40 bg-slate-50 border-dashed border-slate-200 line-through text-slate-400 decoration-slate-400' : '',
-                              (isQuestionLocked(index) && optIdx === (q.correctAnswerIndex ?? q.correctAnswer)) ? 'bg-emerald-50 border-emerald-200 shadow-sm' : '',
-                              (!isQuestionLocked(index) && !isOptionExcluded(index, optIdx) && selectedAnswers[index] === optIdx) ? 'border-amber-300 bg-amber-50/30' : ''
-                            ]"
-                          >
-                            <input
-                              type="radio"
-                              :name="'question-' + index"
-                              :value="optIdx"
-                              v-model="selectedAnswers[index]"
-                              class="w-5 h-5 accent-red-800"
-                              :class="isQuestionLocked(index) ? 'cursor-not-allowed' : 'cursor-pointer'"
-                              :disabled="isLockedByCooldown || isQuestionLocked(index)"
-                            >
-                            <span 
-                              class="font-bold text-sm transition-colors"
-                              :class="[
-                                (isQuestionLocked(index) && optIdx === (q.correctAnswerIndex ?? q.correctAnswer)) ? 'text-emerald-700' : 'text-slate-600 group-hover/label:text-slate-900'
-                              ]"
-                            >{{ option }}</span>
-                            <button
-                              v-if="!isQuestionLocked(index)"
-                              type="button"
-                              @click.stop.prevent="toggleExcludeOption(index, optIdx)"
-                              class="ml-auto p-2 -mr-2 rounded-full transition-all focus:outline-none flex items-center justify-center"
-                              :class="[
-                                isOptionExcluded(index, optIdx)
-                                  ? 'text-amber-600 bg-amber-50 hover:bg-amber-100'
-                                  : 'text-slate-300 hover:text-red-500 hover:bg-red-50'
-                              ]"
-                              :title="isOptionExcluded(index, optIdx) ? '恢復選項' : '排除此選項'"
-                              style="min-width: 40px; min-height: 40px;"
-                            >
-                              <svg v-if="isOptionExcluded(index, optIdx)" xmlns="http://www.w3.org/2000/svg" class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                              </svg>
-                              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                              </svg>
-                            </button>
+                             class="relative flex items-start gap-4 p-4 pr-4 rounded-xl border border-slate-100 transition-all group/label"
+                             :class="[
+                               isQuestionLocked(index) ? 'cursor-not-allowed opacity-80' : 'cursor-pointer hover:bg-slate-50 hover:border-amber-200',
+                               isOptionExcluded(index, optIdx) ? 'opacity-45 bg-slate-50 border-dashed border-slate-200 line-through text-slate-400 decoration-slate-400' : '',
+                               (isQuestionLocked(index) && optIdx === (q.correctAnswerIndex ?? q.correctAnswer)) ? 'bg-emerald-50 border-emerald-200 shadow-sm' : '',
+                               (!isQuestionLocked(index) && !isOptionExcluded(index, optIdx) && selectedAnswers[index] === optIdx) ? 'border-amber-300 bg-amber-50/30' : ''
+                             ]"
+                           >
+                             <!-- 隱藏真實 Radio Input -->
+                             <input
+                               type="radio"
+                               :name="'question-' + index"
+                               :value="optIdx"
+                               v-model="selectedAnswers[index]"
+                               class="sr-only"
+                               :disabled="isLockedByCooldown || isQuestionLocked(index)"
+                             >
+
+                             <!-- 自訂序號圓圈與疊加微型消去鈕 -->
+                             <div class="relative flex-shrink-0 select-none">
+                               <!-- 自訂序號圓圈 -->
+                               <div 
+                                 class="w-9 h-9 rounded-full border-2 flex items-center justify-center font-bold text-sm transition-all duration-200"
+                                 :class="[
+                                   isOptionExcluded(index, optIdx) 
+                                     ? 'bg-slate-100 border-slate-200 text-slate-350 line-through' 
+                                     : (selectedAnswers[index] === optIdx)
+                                       ? 'bg-red-800 border-red-800 text-white shadow-sm scale-105'
+                                       : 'bg-white border-slate-200 text-slate-500 group-hover/label:border-amber-300 group-hover/label:text-slate-700'
+                                 ]"
+                               >
+                                 {{ ['A', 'B', 'C', 'D'][optIdx] }}
+                               </div>
+
+                               <!-- 絕對定位在左上角的微型消去/還原按鈕 -->
+                               <button
+                                 v-if="!isQuestionLocked(index)"
+                                 type="button"
+                                 @click.stop.prevent="toggleExcludeOption(index, optIdx)"
+                                 class="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full flex items-center justify-center shadow-md border border-white transition-all duration-200 focus:outline-none z-10"
+                                 :class="[
+                                   isOptionExcluded(index, optIdx)
+                                     ? 'text-amber-700 bg-amber-100 border-amber-200 hover:bg-amber-200 opacity-100 scale-100'
+                                     : 'text-slate-400 bg-white border-slate-200 hover:text-red-600 hover:bg-red-50 hover:border-red-200 opacity-70 lg:opacity-0 lg:group-hover/label:opacity-100 hover:scale-110'
+                                 ]"
+                                 :title="isOptionExcluded(index, optIdx) ? '恢復選項' : '排除此選項'"
+                               >
+                                 <!-- 排除後顯示彎箭頭還原圖示 -->
+                                 <svg v-if="isOptionExcluded(index, optIdx)" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                   <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                 </svg>
+                                 <!-- 預設顯示微型叉叉 -->
+                                 <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                   <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                 </svg>
+                               </button>
+                             </div>
+
+                             <!-- 選項文字內容 -->
+                             <span 
+                               class="font-bold text-sm transition-colors pt-1.5 leading-relaxed"
+                               :class="[
+                                 (isQuestionLocked(index) && optIdx === (q.correctAnswerIndex ?? q.correctAnswer)) ? 'text-emerald-700' : 'text-slate-600 group-hover/label:text-slate-900',
+                                 isOptionExcluded(index, optIdx) ? 'text-slate-400' : ''
+                               ]"
+                             >{{ option }}</span>
                           </label>
                        </div>
                     </div>
