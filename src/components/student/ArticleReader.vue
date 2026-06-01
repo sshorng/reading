@@ -664,7 +664,7 @@ onMounted(() => {
     selectedAnswers.value = best ? [...best.answers] : Array(questions.value.length).fill(null);
     loadExcludedOptions();
     
-    if (isPassed.value) {
+    if (highestScore.value === 100) {
         stopTimer();
         const firstAttempt = history.value[0];
         timerSeconds.value = firstAttempt?.durationSeconds || 0;
