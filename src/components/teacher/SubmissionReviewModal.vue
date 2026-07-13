@@ -126,7 +126,7 @@
                         </div>
                         <div class="text-right">
                           <div class="text-xl font-black text-amber-600 leading-none">{{ att.score }}%</div>
-                          <div class="text-[10px] text-amber-800/40 mt-1 font-mono">⏱ {{ formatTime(att.durationSeconds || 0) }}</div>
+                          <div v-if="idx === 0" class="text-[10px] text-amber-800/40 mt-1 font-mono">⏱ {{ formatTime(att.durationSeconds || 0) }}</div>
                         </div>
                       </div>
                   </div>

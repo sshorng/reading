@@ -120,7 +120,7 @@
                   <ul class="space-y-2">
                       <li v-for="(rec, idx) in history" :key="idx" class="text-xs text-slate-500 flex justify-between items-center border-b border-dashed border-slate-100 pb-1">
                         <span>第 {{ idx + 1 }} 次挑戰</span>
-                        <span class="font-bold text-slate-700">{{ rec.score }} 分 <span class="text-[10px] font-normal text-slate-400">({{ formatTime(rec.durationSeconds || 0) }})</span></span>
+                        <span class="font-bold text-slate-700">{{ rec.score }} 分 <span v-if="idx === 0" class="text-[10px] font-normal text-slate-400">({{ formatTime(rec.durationSeconds || 0) }})</span></span>
                       </li>
                   </ul>
               </div>
